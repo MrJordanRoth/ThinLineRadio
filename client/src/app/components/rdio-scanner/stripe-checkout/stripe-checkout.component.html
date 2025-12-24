@@ -1,0 +1,75 @@
+<div class="stripe-checkout">
+  <div class="checkout-header">
+    <h2>{{ isChangingPlan ? 'Change Subscription Plan' : 'Subscribe to ' + getBranding() }}</h2>
+    <p>{{ isChangingPlan ? 'Select a new plan to replace your current subscription' : 'Complete your subscription to access all features' }}</p>
+  </div>
+
+  <div class="checkout-content">
+    <div class="error-message" *ngIf="error">
+      {{ error }}
+    </div>
+
+    <div class="payment-form">
+      <div class="subscription-info" *ngIf="!isChangingPlan">
+        <p>You need an active subscription to access {{ getBranding() }}.</p>
+        <p>Select a pricing option below and click Subscribe to continue.</p>
+      </div>
+      <div class="subscription-info" *ngIf="isChangingPlan">
+        <p>Your current subscription will be canceled and replaced with the new plan.</p>
+        <p>Select a new pricing option below and click Subscribe to continue.</p>
+      </div>
+
+      <!-- Pricing Options -->
+      <div class="pricing-options" *ngIf="config.options && config.options.pricingOptions && config.options.pricingOptions.length > 0">
+        <div *ngFor="let option of config.options.pricingOptions" 
+             class="pricing-card"
+             [class.selected]="selectedPriceId === option.priceId"
+             [class.current-plan]="currentPriceId === option.priceId"
+             [class.disabled]="currentPriceId === option.priceId"
+             (click)="currentPriceId !== option.priceId && selectPrice(option.priceId)">
+          <div class="pricing-header">
+            <h3>{{ option.label }}</h3>
+            <mat-icon *ngIf="selectedPriceId === option.priceId" class="checkmark">check_circle</mat-icon>
+            <span *ngIf="currentPriceId === option.priceId" class="current-badge">Current Plan</span>
+          </div>
+          <div class="pricing-amount">{{ option.amount }}</div>
+          <div class="trial-badge" *ngIf="option.trialDays && option.trialDays > 0">
+            <mat-icon>schedule</mat-icon>
+            <span>{{ option.trialDays }}-day free trial</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fallback if no pricing options -->
+      <div *ngIf="!config.options || !config.options.pricingOptions || config.options.pricingOptions.length === 0" class="error-message">
+        No pricing options available. Please contact support.
+      </div>
+
+      <div class="checkout-actions">
+        <button 
+          mat-raised-button 
+          class="subscribe-button"
+          (click)="handleSubmit()" 
+          [disabled]="loading || !selectedPriceId">
+          <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
+          <span *ngIf="!loading">{{ isChangingPlan ? 'Change Plan' : 'Subscribe Now' }}</span>
+        </button>
+
+        <button 
+          mat-raised-button 
+          class="cancel-button"
+          (click)="onCancel()" 
+          [disabled]="loading">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <div class="checkout-footer">
+      <p class="security-note">
+        <mat-icon>security</mat-icon>
+        Your payment information is secure and encrypted
+      </p>
+    </div>
+  </div>
+</div>

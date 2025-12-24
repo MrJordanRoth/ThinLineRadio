@@ -1,0 +1,109 @@
+<div class="keyword-lists-container">
+    <div class="keyword-lists-header">
+        <h3>Keyword Lists</h3>
+        <button mat-raised-button color="primary" (click)="addNew()">
+            <mat-icon>add</mat-icon>
+            Add Keyword List
+        </button>
+    </div>
+
+    <div class="keyword-lists-content">
+        <div *ngIf="loading" class="loading">
+            <p>Loading keyword lists...</p>
+        </div>
+
+        <div *ngIf="!loading && keywordLists.length === 0" class="no-lists">
+            <p>No keyword lists configured. Click "Add Keyword List" to create one.</p>
+        </div>
+
+        <div *ngIf="!loading" class="lists-list">
+            <div *ngFor="let list of keywordLists; let i = index" class="list-item">
+                <div *ngIf="editingIndex !== i" class="list-display">
+                    <div class="list-header">
+                        <strong>{{ list.label || 'Unnamed List' }}</strong>
+                        <div class="list-actions">
+                            <button mat-icon-button (click)="startEdit(i)">
+                                <mat-icon>edit</mat-icon>
+                            </button>
+                            <button mat-icon-button color="warn" (click)="deleteList(i)">
+                                <mat-icon>delete</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+                    <div *ngIf="list.description" class="list-description">
+                        {{ list.description }}
+                    </div>
+                    <div class="list-keywords">
+                        <strong>Keywords ({{ (list.keywords || []).length }}):</strong>
+                        <div class="keywords-tags">
+                            <span *ngFor="let keyword of list.keywords" class="keyword-tag">
+                                {{ keyword }}
+                            </span>
+                            <span *ngIf="!list.keywords || list.keywords.length === 0" class="no-keywords">
+                                No keywords
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div *ngIf="editingIndex === i && editingForm" class="list-edit" [formGroup]="editingForm">
+                    <div class="edit-header">
+                        <mat-form-field floatLabel="auto">
+                            <input type="text" matInput formControlName="label" placeholder="Label" required>
+                            <mat-error *ngIf="editingForm.get('label')?.hasError('required')">
+                                Label is required
+                            </mat-error>
+                        </mat-form-field>
+                        <mat-form-field floatLabel="auto">
+                            <input type="number" matInput formControlName="order" placeholder="Order" min="0">
+                        </mat-form-field>
+                    </div>
+
+                    <mat-form-field floatLabel="auto" style="width: 100%;">
+                        <textarea matInput formControlName="description" placeholder="Description" rows="2"></textarea>
+                    </mat-form-field>
+
+                    <div class="keywords-section">
+                        <div class="keywords-header">
+                            <strong>Keywords:</strong>
+                            <div class="keyword-actions">
+                                <button mat-button (click)="addKeyword(editingForm)">
+                                    <mat-icon>add</mat-icon>
+                                    Add Keyword
+                                </button>
+                                <input type="file" 
+                                       accept=".txt,.json,text/plain,application/json" 
+                                       style="display: none" 
+                                       #fileInput
+                                       (change)="importKeywordsFromFile(editingForm, $event)">
+                                <button mat-button (click)="fileInput.click()">
+                                    <mat-icon>upload_file</mat-icon>
+                                    Import from File
+                                </button>
+                            </div>
+                        </div>
+                        <div class="keywords-list">
+                            <span *ngFor="let keyword of currentEditingKeywords" class="keyword-item">
+                                {{ keyword }}
+                                <button mat-icon-button (click)="removeKeyword(editingForm, keyword)">
+                                    <mat-icon>close</mat-icon>
+                                </button>
+                            </span>
+                            <span *ngIf="currentEditingKeywords.length === 0" class="no-keywords">
+                                No keywords
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="edit-actions">
+                        <button mat-button (click)="cancelEdit()">Cancel</button>
+                        <button mat-raised-button color="primary" (click)="saveEdit()" [disabled]="editingForm.invalid">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

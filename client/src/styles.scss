@@ -1,0 +1,43 @@
+@use "@angular/material" as mat;
+
+@import "./styles/material-icons";
+@import "./styles/roboto-fonts";
+
+@include mat.core();
+
+$rdio-scanner-font-family: Roboto, "Helvetica Neue", sans-serif;
+
+$rdio-scanner-primary: mat.define-palette(mat.$grey-palette, 800, 50);
+$rdio-scanner-accent: mat.define-palette(mat.$green-palette);
+$rdio-scanner-warn: mat.define-palette(mat.$red-palette);
+$rdio-scanner-typography: mat.define-typography-config(
+	$font-family: $rdio-scanner-font-family,
+);
+
+$rdio-scanner-theme: mat.define-light-theme(
+	(
+		color: (
+			primary: $rdio-scanner-primary,
+			accent: $rdio-scanner-accent,
+			warn: $rdio-scanner-warn,
+		),
+	)
+);
+
+@include mat.all-component-themes($rdio-scanner-theme);
+@include mat.all-component-typographies($rdio-scanner-typography);
+
+body {
+	font-family: $rdio-scanner-font-family;
+	margin: 0;
+}
+
+body,
+html {
+	height: 100%;
+}
+
+html,
+body {
+	height: 100%;
+}

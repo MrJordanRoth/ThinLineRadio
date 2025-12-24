@@ -1,0 +1,260 @@
+<ng-container [formGroup]="form">
+    <div class="row">
+        <p>
+            <span class="mat-body">Id</span><br>
+            <span class="mat-caption">System identifier in decimal format.</span>
+        </p>
+        <mat-form-field floatLabel="auto">
+            <input type="number" min="1" step="1" matInput formControlName="systemRef" placeholder="Id">
+            <mat-error *ngIf="form.get('systemRef')?.hasError('duplicate')">
+                Id is already defined
+            </mat-error>
+            <mat-error *ngIf="form.get('systemRef')?.hasError('min')">
+                Id is invalid
+            </mat-error>
+            <mat-error *ngIf="form.get('systemRef')?.hasError('required')">
+                Id is required
+            </mat-error>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Label</span><br>
+            <span class="mat-caption">System label displayed on the main screen and on the search panel.</span>
+        </p>
+        <mat-form-field floatLabel="auto">
+            <input type="text" matInput formControlName="label" placeholder="Label">
+            <mat-error *ngIf="form.get('label')?.hasError('required')">
+                Label is required
+            </mat-error>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Auto Populate</span><br>
+            <span class="mat-caption">Allows the automatic creation of unconfigured talkgroups.</span>
+        </p>
+        <mat-slide-toggle color="primary" formControlName="autoPopulate"></mat-slide-toggle>
+    </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Delay</span><br>
+            <span class="mat-caption">
+                Delay in minutes before propagating calls to clients.
+            </span>
+        </p>
+        <mat-form-field floatLabel="auto">
+            <input type="number" min="0" step="1" matInput formControlName="delay" placeholder="Minutes">
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Blacklists</span><br>
+            <span class="mat-caption">A comma separated list of talkgroup Ids to blacklist from this system. This only
+                has an effect if the auto populate option is enabled.</span>
+        </p>
+        <mat-form-field floatLabel="auto">
+            <textarea type="text" matInput formControlName="blacklists" placeholder="Blacklists"></textarea>
+            <mat-error *ngIf="form?.get('blacklists')?.hasError('invalid')">
+                Comma separated list of talkgroup Ids
+            </mat-error>
+        </mat-form-field>
+    </div>
+    <div class="row">
+        <p>
+            <span class="mat-body">Type</span><br>
+            <span class="mat-caption">
+                Type of radio system displayed on main screen.
+                <ul>
+                    <li><b>AM</b> - Amplitude modulation.</li>
+                    <li><b>DMR</b> - Digital mobile radio system.</li>
+                    <li><b>FM</b> - Frequency modulation.</li>
+                    <li><b>NFM</b> - Narrow frequency modulation.</li>
+                    <li><b>NXDN</b> - Next Generation Digital Narrowband radio system.</li>
+                    <li><b>P25</b> - APCO-25 radio system.</li>
+                    <li><b>Provoice</b> - EDACS Provoice radio system.</li>
+                    <li><b>SmartNet</b> - Motorola SmartNet radio system.</li>
+                    <li><b>Tetra</b> - Trans european trunked radio system.</li>
+                </ul>
+            </span>
+        </p>
+        <mat-form-field floatLabel="auto">
+            <mat-select formControlName="type" placeholder="Type">
+                <mat-option value="">No Type</mat-option>
+                <mat-option value="am">AM</mat-option>
+                <mat-option value="dmr">DMR</mat-option>
+                <mat-option value="fm">FM</mat-option>
+                <mat-option value="nfm">NFM</mat-option>
+                <mat-option value="nxdn">NXDN</mat-option>
+                <mat-option value="p25">P25</mat-option>
+                <mat-option value="provoice">Provoice</mat-option>
+                <mat-option value="smartnet">SmartNet</mat-option>
+                <mat-option value="tetra">Tetra</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <mat-accordion displayMode="flat">
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                    Sites
+                    <mat-icon *ngIf="form.get('sites')?.invalid" color="warn">error</mat-icon>
+                </mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-template matExpansionPanelContent>
+                <div class="row top">
+                    <p class="mat-caption">System sites, you can drag and drop sites to rearrange them.</p>
+                    <button type="button" mat-button color="accent" (click)="addSite()">New Site</button>
+                </div>
+                <mat-accordion displayMode="flat" cdkDropList [cdkDropListAutoScrollStep]=64 [cdkDropListData]="sites"
+                    (cdkDropListDropped)="drop($event)">
+                    <mat-expansion-panel *ngFor="let site of sites; index as i" [formGroup]="site" cdkDrag>
+                        <mat-expansion-panel-header>
+                            <mat-panel-title>
+                                <mat-icon cdkDragHandle>drag_indicator</mat-icon>
+                                {{ site.value.label?.trim() || 'NewSite' }}
+                                <mat-icon *ngIf="site.invalid" color="warn">error</mat-icon>
+                            </mat-panel-title>
+                        </mat-expansion-panel-header>
+                        <ng-template matExpansionPanelContent>
+                            <rdio-scanner-admin-site [form]="site" (remove)="removeSite(i)"></rdio-scanner-admin-site>
+                        </ng-template>
+                    </mat-expansion-panel>
+                </mat-accordion>
+            </ng-template>
+        </mat-expansion-panel>
+    </mat-accordion>
+    <mat-accordion displayMode="flat">
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                    Talkgroups
+                    <mat-icon *ngIf="form.get('talkgroups')?.invalid" color="warn">error</mat-icon>
+                </mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-template matExpansionPanelContent>
+                <div class="row top">
+                    <p class="mat-caption">System talkgroups, you can drag and drop talkgroups to rearrange them. They
+                        will appear with the same order on the talkgroup selection panel unless the sort talkgroups
+                        option is enabled.</p>
+                    <button type="button" mat-button color="accent" (click)="addTalkgroup()">New talkgroup</button>
+                </div>
+                
+                <!-- Bulk Actions Section -->
+                <div class="row" style="background-color: #f5f5f5; padding: 12px; margin: 12px 0; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <p class="mat-body" style="margin: 0 0 8px 0;"><strong>Bulk Actions</strong></p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <button type="button" mat-button (click)="selectAllTalkgroups()" [disabled]="allTalkgroupsSelected">
+                                Select All
+                            </button>
+                            <button type="button" mat-button (click)="unselectAllTalkgroups()" [disabled]="!hasSelectedTalkgroups">
+                                Unselect All
+                            </button>
+                            <span class="mat-caption" style="margin-left: 8px;">
+                                {{ selectedTalkgroupIndices.size }} selected
+                            </span>
+                        </div>
+                        <div *ngIf="hasSelectedTalkgroups" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px;">
+                            <mat-form-field floatLabel="auto" style="width: 200px;">
+                                <mat-label>Assign Group</mat-label>
+                                <mat-select [(value)]="bulkAssignGroupId">
+                                    <mat-option [value]="null">-- Select Group --</mat-option>
+                                    <mat-option *ngFor="let group of groups" [value]="group.id">
+                                        {{ group.label }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <button type="button" mat-raised-button color="primary" (click)="bulkAssignGroup()" 
+                                    [disabled]="bulkAssignGroupId === null">
+                                Add Group
+                            </button>
+                            <button type="button" mat-button color="warn" (click)="bulkRemoveGroup()" 
+                                    [disabled]="bulkAssignGroupId === null">
+                                Remove Group
+                            </button>
+                        </div>
+                        <div *ngIf="hasSelectedTalkgroups" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px;">
+                            <mat-form-field floatLabel="auto" style="width: 200px;">
+                                <mat-label>Assign Tag</mat-label>
+                                <mat-select [(value)]="bulkAssignTagId">
+                                    <mat-option [value]="null">-- Select Tag --</mat-option>
+                                    <mat-option *ngFor="let tag of tags" [value]="tag.id">
+                                        {{ tag.label }}
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <button type="button" mat-raised-button color="primary" (click)="bulkAssignTag()" 
+                                    [disabled]="bulkAssignTagId === null">
+                                Assign Tag
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <mat-accordion displayMode="flat" cdkDropList [cdkDropListAutoScrollStep]=64
+                    [cdkDropListData]="talkgroups" (cdkDropListDropped)="drop($event)">
+                    <mat-expansion-panel *ngFor="let talkgroup of talkgroups; index as i" [formGroup]="talkgroup"
+                        cdkDrag>
+                        <mat-expansion-panel-header>
+                            <mat-panel-title>
+                                <mat-checkbox 
+                                    [checked]="isTalkgroupSelected(i)"
+                                    (change)="toggleTalkgroupSelection(i)"
+                                    (click)="$event.stopPropagation()"
+                                    style="margin-right: 8px;">
+                                </mat-checkbox>
+                                <mat-icon cdkDragHandle>drag_indicator</mat-icon>
+                                {{ talkgroup.value.label?.trim() || 'NewTalkgroup' }}
+                                <mat-icon *ngIf="talkgroup.invalid" color="warn">error</mat-icon>
+                            </mat-panel-title>
+                        </mat-expansion-panel-header>
+                        <ng-template matExpansionPanelContent>
+                            <rdio-scanner-admin-talkgroup [form]="talkgroup" (blacklist)="blacklistTalkgroup(i)"
+                                (remove)="removeTalkgroup(i)">
+                            </rdio-scanner-admin-talkgroup>
+                        </ng-template>
+                    </mat-expansion-panel>
+                </mat-accordion>
+            </ng-template>
+        </mat-expansion-panel>
+    </mat-accordion>
+    <mat-accordion displayMode="flat">
+        <mat-expansion-panel>
+            <mat-expansion-panel-header>
+                <mat-panel-title>
+                    Units
+                    <mat-icon *ngIf="form.get('units')?.invalid" color="warn">error</mat-icon>
+                </mat-panel-title>
+            </mat-expansion-panel-header>
+            <ng-template matExpansionPanelContent>
+                <div class="row top">
+                    <p class="mat-caption">Create units to display the label instead of showing the unit id on the main
+                        screen.<br>You can drag and drop them to rearrange</p>
+                    <button type="button" mat-button color="accent" (click)="addUnit()">New unit</button>
+                </div>
+                <mat-accordion displayMode="flat" cdkDropList [cdkDropListAutoScrollStep]=64 [cdkDropListData]="units"
+                    (cdkDropListDropped)="drop($event)">
+                    <mat-expansion-panel *ngFor="let unit of units; index as i" [formGroup]="unit" cdkDrag>
+                        <mat-expansion-panel-header>
+                            <mat-panel-title>
+                                <mat-icon cdkDragHandle>drag_indicator</mat-icon>
+                                {{ unit.value.label?.trim() || 'NewUnit' }}
+                                <mat-icon *ngIf="unit.invalid" color="warn">error</mat-icon>
+                            </mat-panel-title>
+                        </mat-expansion-panel-header>
+                        <ng-template matExpansionPanelContent>
+                            <rdio-scanner-admin-unit [form]="unit" (remove)="removeUnit(i)">
+                            </rdio-scanner-admin-unit>
+                        </ng-template>
+                    </mat-expansion-panel>
+                </mat-accordion>
+            </ng-template>
+        </mat-expansion-panel>
+    </mat-accordion>
+    <div class="row bottom">
+        <button type="button" mat-button color="warn" (click)="remove.emit()">
+            Delete system
+        </button>
+    </div>
+</ng-container>

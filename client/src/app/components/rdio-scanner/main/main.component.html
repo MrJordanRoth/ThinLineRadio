@@ -1,0 +1,368 @@
+<div class="main-container" [class.subscription-locked]="!subscriptionActive && subscriptionChecked">
+    <!-- Subscription Lock Overlay (only show if checkout is not showing) -->
+    <div class="subscription-lock-overlay" *ngIf="!subscriptionActive && subscriptionChecked && !showCheckout">
+        <div class="lock-message">
+            <mat-icon class="lock-icon">lock</mat-icon>
+            <h2 *ngIf="!isGroupAdminManaged">Subscription Required</h2>
+            <h2 *ngIf="isGroupAdminManaged">Account Expired</h2>
+            <p *ngIf="!isGroupAdminManaged">An active subscription is required to access the scanner.</p>
+            <p *ngIf="isGroupAdminManaged">Your account has expired. Please contact your group administrator.</p>
+            
+            <!-- Action buttons for admin-managed users -->
+            <div *ngIf="isGroupAdminManaged" class="lock-actions">
+                <button mat-raised-button color="primary" (click)="transferToPersonalSubscription()" [disabled]="transferring">
+                    <mat-spinner *ngIf="transferring" diameter="20" class="inline-spinner"></mat-spinner>
+                    <span *ngIf="!transferring">Transfer to Personal Subscription</span>
+                    <span *ngIf="transferring">Transferring...</span>
+                </button>
+                <button mat-raised-button color="accent" (click)="onSignOut()">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="signout-container" *ngIf="isUserAuthenticated">
+        <button mat-raised-button class="signout-button" (click)="onSignOut()" title="Sign Out">
+            Sign Out
+        </button>
+    </div>
+    
+    <div class="scanner-layout" [class.disabled]="!subscriptionActive && subscriptionChecked">
+        <!-- Left Column: Scanner -->
+        <div class="scanner-column">
+<div class="rdio-status">
+    <div class="left-led-container">
+        <div class="led" [ngClass]="getLeftLedStyle()"></div>
+        <span class="led-text" [style.color]="getLeftLedTextColor()">{{ getLeftLedText() }}</span>
+    </div>
+    <div class="branding">{{ branding || 'ThinLine Radio' }}</div>
+    <div class="right-status-container">
+        <div class="led right-led" [ngClass]="getRightLedStyle()" [style.background-color]="getRightLedColor()" [style.box-shadow]="getRightLedBoxShadow()"></div>
+    </div>
+</div>
+<div class="rdio-display" [ngClass]="{ idle: !dimmer }" (dblclick)="toggleFullscreen.emit()">
+    <!-- Stats Row -->
+    <div class="row three">
+        <div>
+            <span>Time {{ clock | date:timeFormat }}</span>
+        </div>
+        <div>
+            <span *ngIf="!linked">NO LINK</span>
+            <span *ngIf="linked && showListenersCount">Listeners {{ listeners }}</span>
+            <span *ngIf="linked && !showListenersCount">Listeners --</span>
+        </div>
+        <div>
+            <span>Queue {{ callQueue }}</span>
+        </div>
+    </div>
+    <div class="row small"></div>
+
+    <!-- System/TGID Row -->
+    <div class="row">
+        <div>
+            <span>{{ callSystem }}</span>
+        </div>
+        <div></div>
+        <div>
+            <span>TGID {{ callTalkgroupId || 0 }}</span>
+        </div>
+    </div>
+
+    <!-- Tag/ID Row -->
+    <div class="row">
+        <div>
+            <span>{{ callTag }}</span>
+        </div>
+        <div></div>
+        <div>
+            <span>ID {{ callUnit || '0' }}</span>
+        </div>
+    </div>
+
+    <!-- Scanning Animation (shown when live feed is on and nothing is playing) -->
+    <div class="scanning-container" *ngIf="showScanningAnimation">
+        <div class="scanning-animation">
+            <div class="scanning-text">
+                <span class="scanning-label">SCANNING</span>
+                <div class="scanning-dots">
+                    <span class="dot dot1">.</span>
+                    <span class="dot dot2">.</span>
+                    <span class="dot dot3">.</span>
+                </div>
+            </div>
+            <div class="current-system" *ngIf="getCurrentScanningSystem()">
+                <div class="system-name">
+                    {{ getCurrentScanningSystem() }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Talkgroup Container - Flutter Style -->
+    <div class="talkgroup-container" *ngIf="!showScanningAnimation">
+        <div class="talkgroup-label">Talkgroup</div>
+        <div class="talkgroup-box" [ngClass]="getTalkgroupBoxColor()" [style.color]="getTalkgroupTextColor()">
+            <div class="talkgroup-name" [style.color]="getTalkgroupTextColor()">{{ callTalkgroup || callTalkgroupName }}</div>
+            <div class="favorite-star" *ngIf="callSystem && callTalkgroup">
+                <mat-icon [style.color]="getTalkgroupTextColor()">{{ isFavorite ? 'star' : 'star_border' }}</mat-icon>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frequency/Time Row -->
+    <div class="row">
+        <div>
+            <span>F {{ formatFrequencyMHz(call?.frequency) }}</span>
+        </div>
+        <div></div>
+        <div>
+            <span>{{ call?.dateTime | date:timeFormat }}</span>
+        </div>
+    </div>
+
+    <div class="wrapper">
+        <!-- Authentication Dialog -->
+        <div class="auth" [ngClass]="{ visible: auth }">
+            <div class="auth-container">
+                <div class="auth-form">
+                    <form class="mat-elevation-z8" autocomplete="off" [formGroup]="authForm" (ngSubmit)="authenticate()">
+                        <mat-form-field>
+                            <input #password matInput type="password" autocomplete="off" formControlName="password"
+                                placeholder="Unlock code" (blur)="authFocus()">
+                            <mat-error *ngIf="authForm.get('password')?.hasError('expired')">
+                                This unlock code has expired
+                            </mat-error>
+                            <mat-error *ngIf="authForm.get('password')?.hasError('tooMany')">
+                                Too many connections
+                            </mat-error>
+                        </mat-form-field>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- Transmission History -->
+        <div class="transmission-history">
+            <div class="history-header">Last 10 Transmissions</div>
+            <table class="history">
+                <thead>
+                    <tr>
+                        <th><span>TOC</span></th>
+                        <th><span>System</span></th>
+                        <th><span>Talkgroup</span></th>
+                        <th><span>Name</span></th>
+                        <th><span>Frequency</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let previousCall of callHistory"
+                        [ngClass]="{ 'replaying': previousCall?.id !== null && previousCall?.id === call?.id} ">
+                        <td>
+                            <span>{{ previousCall?.dateTime | date:timeFormat }}</span>
+                        </td>
+                        <td>
+                            <span>{{ previousCall?.systemData?.label || previousCall?.system}}</span>
+                        </td>
+                        <td>
+                            <span>{{ previousCall?.talkgroupData?.label || previousCall?.talkgroup }}</span>
+                        </td>
+                        <td>
+                            <span>{{ previousCall?.talkgroupData?.name || previousCall?.frequency }}</span>
+                        </td>
+                        <td>
+                            <span>{{ formatFrequencyMHz(previousCall?.frequency) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Control Panel - Grid Layout like Flutter -->
+<div class="rdio-control">
+    <div class="control-grid">
+        <!-- Row 1: Live Feed, Pause, Replay Last, Skip Next -->
+        <button class="rdio-button live-feed" 
+                [ngClass]="{ active: livefeedOnline, inactive: livefeedOffline && !playbackMode }"
+                (click)="livefeed()">
+            <mat-icon>{{ livefeedOnline ? 'radio' : 'radio_button_unchecked' }}</mat-icon>
+            <span>LIVE<br>FEED</span>
+        </button>
+
+        <button class="rdio-button pause" 
+                [ngClass]="{ active: livefeedPaused }"
+                (click)="pause()">
+            <mat-icon>{{ livefeedPaused ? 'play_arrow' : 'pause' }}</mat-icon>
+            <span>{{ livefeedPaused ? 'RESUME' : 'PAUSE' }}</span>
+        </button>
+
+        <button class="rdio-button replay" (click)="replay()">
+            <mat-icon>replay</mat-icon>
+            <span>REPLAY<br>LAST</span>
+        </button>
+
+        <button class="rdio-button skip-next" (click)="skip()">
+            <mat-icon>skip_next</mat-icon>
+            <span>SKIP<br>NEXT</span>
+        </button>
+
+        <!-- Row 2: Avoid Talkgroup, Add Favorite, Hold System, Hold Talkgroup -->
+        <button class="rdio-button avoid" (click)="avoid()">
+            <mat-icon>block</mat-icon>
+            <span>AVOID<br>TALKGROUP</span>
+        </button>
+
+        <button class="rdio-button favorite" 
+                [ngClass]="{ active: isFavorite }"
+                (click)="toggleFavorite()">
+            <mat-icon>{{ isFavorite ? 'star' : 'star_border' }}</mat-icon>
+            <span>{{ isFavorite ? 'REMOVE' : 'ADD' }}<br>FAVORITE</span>
+        </button>
+
+        <button class="rdio-button hold-sys" 
+                [ngClass]="{ active: holdSys }"
+                (click)="holdSystem()">
+            <mat-icon>keyboard_arrow_down</mat-icon>
+            <span>HOLD<br>SYSTEM</span>
+        </button>
+
+        <button class="rdio-button hold-tg" 
+                [ngClass]="{ active: holdTg }"
+                (click)="holdTalkgroup()">
+            <mat-icon>keyboard_double_arrow_down</mat-icon>
+            <span>HOLD<br>TALKGROUP</span>
+        </button>
+
+        <!-- Row 3: Playback, Alerts, Settings, Channel Select -->
+        <button class="rdio-button playback" (click)="showSearchPanel()">
+            <mat-icon>play_circle</mat-icon>
+            <span>PLAYBACK</span>
+        </button>
+
+        <button class="rdio-button alerts" (click)="showAlertsPanel()">
+            <mat-icon>notifications</mat-icon>
+            <span>ALERTS</span>
+        </button>
+
+        <button class="rdio-button settings" (click)="showSettingsPanel()">
+            <mat-icon>settings</mat-icon>
+            <span>SETTINGS</span>
+        </button>
+
+        <button class="rdio-button channel-select" (click)="showSelectPanel()">
+            <mat-icon>tune</mat-icon>
+            <span>CHANNEL<br>SELECT</span>
+        </button>
+    </div>
+    
+    <!-- Volume Control -->
+    <div class="volume-control">
+        <mat-icon class="volume-icon">volume_up</mat-icon>
+        <mat-slider 
+            class="volume-slider"
+            [min]="0" 
+            [max]="100" 
+            [step]="1"
+            [discrete]="true"
+            [showTickMarks]="false">
+            <input matSliderThumb [(ngModel)]="volume" (ngModelChange)="onVolumeChange($event)">
+        </mat-slider>
+        <span class="volume-value">{{ volume }}%</span>
+    </div>
+</div>
+
+<div class="rdio-help" *ngIf="email">
+    <button mat-icon-button (click)="showHelp()">
+        <mat-icon>help_center</mat-icon>
+    </button>
+</div>
+        </div>
+        
+        <!-- Right Column: Recent Alerts -->
+        <div class="alerts-column">
+            <div class="recent-alerts-panel">
+                <div class="alerts-header">
+                    <h3>Recent Alerts</h3>
+                    <button mat-icon-button (click)="loadRecentAlerts()" [disabled]="loadingAlerts" title="Refresh">
+                        <mat-icon>refresh</mat-icon>
+                    </button>
+                </div>
+                
+                <div class="alerts-content">
+                    <div *ngIf="loadingAlerts" class="loading-alerts">
+                        <p>Loading alerts...</p>
+                    </div>
+                    
+                    <div *ngIf="!loadingAlerts && recentAlerts.length === 0" class="no-alerts">
+                        <p>No recent alerts</p>
+                    </div>
+                    
+                    <div *ngIf="!loadingAlerts && recentAlerts.length > 0" class="alerts-list">
+                        <div *ngFor="let alert of recentAlerts" class="alert-item">
+                            <div class="alert-header">
+                                <span class="alert-type-badge">{{ getAlertTypeLabel(alert) }}</span>
+                                <span class="alert-time">{{ formatTimestamp(alert.createdAt) }}</span>
+                            </div>
+                            
+                            <div class="alert-channel">
+                                <mat-icon class="channel-icon">radio</mat-icon>
+                                <span>
+                                    <span *ngIf="alert.systemLabel">{{ alert.systemLabel }}</span>
+                                    <span *ngIf="!alert.systemLabel">System {{ alert.systemId }}</span>
+                                    <span> / </span>
+                                    <span *ngIf="alert.talkgroupLabel">{{ alert.talkgroupLabel }}</span>
+                                    <span *ngIf="!alert.talkgroupLabel && alert.talkgroupName">{{ alert.talkgroupName }}</span>
+                                    <span *ngIf="!alert.talkgroupLabel && !alert.talkgroupName">Talkgroup {{ alert.talkgroupId }}</span>
+                                </span>
+                            </div>
+                            
+                            <div *ngIf="alert.transcript || alert.transcriptSnippet" class="alert-transcript">
+                                <p class="transcript-text">{{ alert.transcript || alert.transcriptSnippet }}</p>
+                            </div>
+                            
+                            <div *ngIf="getKeywordsMatched(alert).length > 0" class="alert-keywords">
+                                <span class="keyword-label">Keywords:</span>
+                                <span *ngFor="let keyword of getKeywordsMatched(alert)" class="keyword-tag">
+                                    {{ keyword }}
+                                </span>
+                            </div>
+                            
+                            <div *ngIf="alert.toneDetected && (alert.matchedToneSetNames?.length || alert.matchedToneSetName)" class="alert-tone">
+                                <mat-icon class="tone-icon">notifications_active</mat-icon>
+                                <span *ngIf="alert.matchedToneSetNames && alert.matchedToneSetNames.length > 0">
+                                    {{ alert.matchedToneSetNames.join(', ') }}
+                                </span>
+                                <span *ngIf="!alert.matchedToneSetNames || alert.matchedToneSetNames.length === 0">
+                                    {{ alert.matchedToneSetName }}
+                                </span>
+                            </div>
+                            
+                            <div class="alert-actions">
+                                <button mat-stroked-button class="play-button" (click)="playCall(alert.callId)">
+                                    <mat-icon>play_arrow</mat-icon>
+                                    Play
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stripe Checkout Modal -->
+    <div class="checkout-overlay" *ngIf="showCheckout">
+        <div class="checkout-backdrop" (click)="onCheckoutCancel()"></div>
+        <div class="checkout-modal">
+            <rdio-scanner-stripe-checkout
+                *ngIf="config"
+                [config]="config"
+                [email]="userEmail || email"
+                (checkoutSuccess)="onCheckoutSuccess($event)"
+                (checkoutError)="onCheckoutError($event)"
+                (checkoutCancel)="onCheckoutCancel()">
+            </rdio-scanner-stripe-checkout>
+        </div>
+    </div>
+</div>

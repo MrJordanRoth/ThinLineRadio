@@ -1,0 +1,188 @@
+.group-admin-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .group-name {
+        font-weight: 500;
+        color: #666;
+      }
+    }
+  }
+
+  .tab-content {
+    padding: 24px 0;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+
+      h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .user-count {
+        margin: 4px 0 0 0;
+        font-size: 14px;
+        color: #666;
+        font-weight: 500;
+      }
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .generate-code-section,
+    .add-user-section {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+
+      h3 {
+        margin: 0 0 16px 0;
+        font-size: 16px;
+      }
+
+      .form-row {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        mat-form-field {
+          flex: 1;
+          min-width: 200px;
+
+          &.full-width {
+            width: 100%;
+          }
+        }
+
+        button {
+          margin-top: 8px;
+        }
+      }
+    }
+
+    table {
+      width: 100%;
+
+      .verified {
+        color: #4caf50;
+      }
+
+      .unverified {
+        color: #f44336;
+      }
+
+      .active {
+        color: #4caf50;
+      }
+
+      .inactive {
+        color: #f44336;
+      }
+
+      .pending {
+        color: #ff9800;
+        font-weight: 500;
+      }
+
+      .approved {
+        color: #4caf50;
+        font-weight: 500;
+      }
+
+      .rejected {
+        color: #f44336;
+        font-weight: 500;
+      }
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #666;
+      padding: 40px;
+      font-style: italic;
+    }
+  }
+
+  .transfer-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .transfer-dialog {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #e0e0e0;
+
+      h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+    }
+
+    .dialog-content {
+      padding: 20px;
+
+      .full-width {
+        width: 100%;
+        margin-bottom: 16px;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+      }
+    }
+  }
+}
+

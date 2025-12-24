@@ -1,0 +1,61 @@
+/*
+ * *****************************************************************************
+ * Copyright (C) 2019-2024 Chrystian Huot <chrystian@huot.qc.ca>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
+ * ****************************************************************************
+ */
+
+import { Routes } from '@angular/router';
+import { RdioScannerMainPageComponent } from './rdio-scanner-main.component';
+import { RdioScannerPageComponent } from './rdio-scanner.component';
+import { RdioScannerUserRegistrationComponent } from '../../components/rdio-scanner/user-registration/user-registration.component';
+import { RdioScannerEmailVerificationComponent } from '../../components/rdio-scanner/email-verification/email-verification.component';
+
+export const routes: Routes = [
+    {
+        path: 'group-admin/login',
+        loadChildren: () => import('../../components/rdio-scanner/group-admin/group-admin.module').then(m => m.GroupAdminModule)
+    },
+    {
+        path: 'group-admin',
+        loadChildren: () => import('../../components/rdio-scanner/group-admin/group-admin.module').then(m => m.GroupAdminModule)
+    },
+    {
+        path: '',
+        component: RdioScannerPageComponent,
+        children: [
+            {
+                path: '',
+                component: RdioScannerMainPageComponent,
+            },
+            {
+                path: 'reset',
+                component: RdioScannerMainPageComponent,
+            },
+            {
+                path: 'admin',
+                loadChildren: () => import('./admin/admin.module').then((module) => module.RdioScannerAdminPageModule),
+            },
+            {
+                path: 'register',
+                component: RdioScannerUserRegistrationComponent,
+            },
+            {
+                path: 'verify',
+                component: RdioScannerEmailVerificationComponent,
+            },
+        ],
+    },
+];

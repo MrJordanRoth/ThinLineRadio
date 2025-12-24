@@ -1,0 +1,176 @@
+<div class="registration-container">
+  <div class="registration-form">
+    <h2>Create Account</h2>
+    
+    <!-- Invitation Info -->
+    <div class="invitation-info" *ngIf="invitationGroupName && !success">
+      <mat-icon>mail</mat-icon>
+      <p>You've been invited to join <strong>{{ invitationGroupName }}</strong>!</p>
+    </div>
+    
+    <!-- Public Registration Group Info -->
+    <div class="public-registration-info" *ngIf="!success">
+      <div class="info-section" *ngIf="publicGroupInfo?.name">
+        <h3>{{ publicGroupInfo.name }}</h3>
+        <p *ngIf="publicGroupInfo?.description">{{ publicGroupInfo.description }}</p>
+      </div>
+      
+      <!-- Pricing Information -->
+      <div class="pricing-section" *ngIf="publicGroupInfo?.billingEnabled && publicGroupInfo?.pricingOptions && publicGroupInfo.pricingOptions.length > 0">
+        <h4>Pricing Plans</h4>
+        <div class="pricing-options">
+          <div class="pricing-option" *ngFor="let option of publicGroupInfo.pricingOptions">
+            <div class="pricing-label">{{ option.label }}</div>
+            <div class="pricing-amount">{{ option.amount }}</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Available Channels - Always visible -->
+      <div class="channels-section">
+        <button mat-button (click)="toggleChannels()" class="channels-toggle">
+          <mat-icon>{{ showChannels ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <span>View Available Channels ({{ availableChannels.length }})</span>
+        </button>
+        
+          <div class="channels-list" *ngIf="showChannels && !loadingChannels">
+            <div *ngIf="availableChannels.length === 0" class="no-channels">
+              <p>No channels available at this time.</p>
+            </div>
+            <div class="channel-item" *ngFor="let system of availableChannels">
+              <div class="system-header">
+                <strong>{{ system.label }}</strong>
+                <span class="talkgroup-count" *ngIf="system.talkgroups">
+                  ({{ system.talkgroups.length }} channel{{ system.talkgroups.length !== 1 ? 's' : '' }})
+                </span>
+              </div>
+              <div class="talkgroups-list" *ngIf="system.talkgroups && system.talkgroups.length > 0">
+                <!-- Group by tag -->
+                <div class="talkgroup-group" *ngFor="let tagGroup of getTalkgroupsByTag(system.talkgroups)">
+                  <div class="tag-header" *ngIf="tagGroup.tag">
+                    <strong>{{ tagGroup.tag }}</strong>
+                  </div>
+                  <div class="talkgroup-items">
+                    <div class="talkgroup-item" *ngFor="let tg of tagGroup.talkgroups">
+                      <span class="talkgroup-label">{{ tg.label }}</span>
+                      <span class="talkgroup-description" *ngIf="tg.description">{{ tg.description }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        
+        <div *ngIf="loadingChannels" class="loading-channels">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Loading channels...</span>
+        </div>
+      </div>
+    </div>
+    
+    <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()" *ngIf="!success">
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Email</mat-label>
+        <input matInput type="email" formControlName="email" required>
+        <mat-error *ngIf="registrationForm.get('email')?.hasError('required')">
+          Email is required
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('email')?.hasError('email')">
+          Please enter a valid email address
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>First Name</mat-label>
+        <input matInput type="text" formControlName="firstName" required>
+        <mat-error *ngIf="registrationForm.get('firstName')?.hasError('required')">
+          First name is required
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Last Name</mat-label>
+        <input matInput type="text" formControlName="lastName" required>
+        <mat-error *ngIf="registrationForm.get('lastName')?.hasError('required')">
+          Last name is required
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Zip Code</mat-label>
+        <input matInput type="text" formControlName="zipCode" required>
+        <mat-error *ngIf="registrationForm.get('zipCode')?.hasError('required')">
+          Zip code is required
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" required>
+        <mat-error *ngIf="registrationForm.get('password')?.hasError('required')">
+          Password is required
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('password')?.hasError('minlength')">
+          Password must be at least 8 characters
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('password')?.hasError('requireUpper')">
+          Password must contain at least one uppercase letter
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('password')?.hasError('requireLower')">
+          Password must contain at least one lowercase letter
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('password')?.hasError('requireNumber')">
+          Password must contain at least one number
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Confirm Password</mat-label>
+        <input matInput type="password" formControlName="confirmPassword" required>
+        <mat-error *ngIf="registrationForm.get('confirmPassword')?.hasError('required')">
+          Please confirm your password
+        </mat-error>
+        <mat-error *ngIf="registrationForm.get('confirmPassword')?.hasError('passwordMismatch')">
+          Passwords do not match
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full-width" *ngIf="!invitationCode">
+        <mat-label>Registration Code (Optional)</mat-label>
+        <input matInput type="text" formControlName="registrationCode" placeholder="Enter registration code if you have one">
+        <mat-hint>If you have a registration code, enter it here. Otherwise, leave blank for public registration.</mat-hint>
+      </mat-form-field>
+      
+      <!-- Hidden field for invitation code -->
+      <input type="hidden" formControlName="invitationCode">
+
+      <div class="error-message" *ngIf="error">
+        {{ error }}
+      </div>
+
+      <button mat-raised-button color="primary" type="submit" 
+              [disabled]="registrationForm.invalid || loading" class="full-width">
+        <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
+        <span *ngIf="!loading">Create Account</span>
+      </button>
+
+      <p>Already have an account? <a href="#" (click)="$event.preventDefault(); switchToLogin()">Sign in</a></p>
+    </form>
+
+    <div class="success-message" *ngIf="success">
+      <mat-icon>check_circle</mat-icon>
+      <h3>Account Created Successfully!</h3>
+      <p>Please check your email for a verification link to activate your account.</p>
+      <p *ngIf="generatedPin" class="pin-message">
+        Your listener PIN is <strong>{{ generatedPin }}</strong>. Keep this safe—you'll use it to connect the client.
+      </p>
+      
+      <div class="resend-section">
+        <p class="resend-text">Didn't receive the email? <a href="#" (click)="$event.preventDefault(); resendVerification()">Resend verification email</a></p>
+        <button mat-raised-button color="primary" (click)="switchToLogin()" class="full-width">
+          Continue to Sign In
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

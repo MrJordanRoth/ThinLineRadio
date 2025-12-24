@@ -1,0 +1,33 @@
+# Distribution builds and archives
+dist-*/
+*.zip
+*.tar.gz
+
+# Debug files and data
+server/debug-audio/
+server/tone-keyword-debug.log
+
+# Large model files (download separately)
+server/models/*.bin
+
+# Config files (use templates instead)
+config-sync/
+rdio-scanner.json
+rdio-scanner(2).json
+server/ThinlineRadio/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.log
+*.tmp
+

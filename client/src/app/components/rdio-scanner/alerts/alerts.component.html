@@ -1,0 +1,169 @@
+<div class="alerts-container">
+    <div class="alerts-header">
+        <div class="header-tabs">
+            <button class="tab-button" [class.active]="activeTab === 'alerts'" (click)="setTab('alerts')">
+                <mat-icon>notifications</mat-icon>
+                Alerts
+            </button>
+            <button class="tab-button" [class.active]="activeTab === 'transcripts'" (click)="setTab('transcripts')">
+                <mat-icon>forum</mat-icon>
+                Transcripts
+            </button>
+            <button class="tab-button" [class.active]="activeTab === 'preferences'" (click)="setTab('preferences')">
+                <mat-icon>settings</mat-icon>
+                Preferences
+            </button>
+        </div>
+        <div class="header-actions">
+            <button *ngIf="activeTab === 'alerts'" class="btn-refresh" (click)="loadAlerts()" [disabled]="loading">
+                {{ loading ? 'Loading...' : 'Refresh Alerts' }}
+            </button>
+            <button *ngIf="activeTab === 'transcripts'" class="btn-refresh" (click)="loadTranscripts()" [disabled]="loadingTranscripts">
+                {{ loadingTranscripts ? 'Loading...' : 'Refresh Transcripts' }}
+            </button>
+        </div>
+    </div>
+    
+    <div class="alerts-content" *ngIf="activeTab === 'alerts'">
+        <div *ngIf="alerts.length === 0 && !loading" class="no-alerts">
+            <p>No alerts</p>
+        </div>
+        
+        <div *ngIf="loading" class="loading">
+            <p>Loading alerts...</p>
+        </div>
+        
+        <div *ngIf="alerts.length > 0" class="alerts-list">
+            <!-- All Alerts - Sorted by Most Recent -->
+            <mat-expansion-panel *ngFor="let group of allAlertGroups; trackBy: trackByGroupKey" 
+                                 [class.tone-alert-group]="group.groupType === 'tone'"
+                                 [class.channel-alert-group]="group.groupType === 'channel'">
+                <mat-expansion-panel-header>
+                    <mat-panel-title>
+                        <mat-icon class="group-icon">{{ group.groupType === 'tone' ? 'notifications_active' : 'tag' }}</mat-icon>
+                        <span class="group-name">{{ group.key }}</span>
+                    </mat-panel-title>
+                    <mat-panel-description>
+                        <span class="alert-count">{{ group.alerts.length }} ALERT{{ group.alerts.length !== 1 ? 'S' : '' }}</span>
+                        <span class="alert-separator">&nbsp;&nbsp;&nbsp;</span>
+                        <span class="group-timestamp">{{ formatTimestamp(group.latestTimestamp) }}</span>
+                    </mat-panel-description>
+                </mat-expansion-panel-header>
+                
+                <div class="alert-group-items">
+                    <div *ngFor="let alert of group.alerts; trackBy: trackByAlertId" 
+                         class="alert-item" 
+                         [class.tone]="alert.alertType === 'tone'"
+                         [class.tone-keyword]="alert.alertType === 'tone+keyword'">
+                        
+                        <div class="alert-header">
+                            <div class="alert-type">
+                                <span class="alert-type-badge">{{ getAlertTypeLabel(alert) }}</span>
+                                <span *ngIf="alert.toneDetected" class="tone-indicator">🔔</span>
+                            </div>
+                            <div class="alert-timestamp">{{ formatTimestamp(alert.createdAt) }}</div>
+                        </div>
+                        
+                        <div class="alert-body">
+                            <div class="alert-info">
+                                <div class="alert-channel">
+                                    <strong>Channel:</strong> 
+                                    <span>
+                                        <span *ngIf="alert.systemLabel">{{ alert.systemLabel }}</span>
+                                        <span *ngIf="!alert.systemLabel">System {{ alert.systemId }}</span>
+                                        <span> / </span>
+                                        <span *ngIf="alert.talkgroupLabel">{{ alert.talkgroupLabel }}</span>
+                                        <span *ngIf="!alert.talkgroupLabel && alert.talkgroupName">{{ alert.talkgroupName }}</span>
+                                        <span *ngIf="!alert.talkgroupLabel && !alert.talkgroupName">Talkgroup {{ alert.talkgroupId }}</span>
+                                    </span>
+                                </div>
+                                
+                                <div *ngIf="alert.toneDetected && (alert.matchedToneSetNames?.length || alert.matchedToneSetName)" class="alert-tone-set">
+                                    <strong>Tone Set{{ (alert.matchedToneSetNames?.length || 0) > 1 ? 's' : '' }}:</strong>
+                                    <span *ngIf="alert.matchedToneSetNames && alert.matchedToneSetNames.length > 0" class="tone-set-names">
+                                        <span *ngFor="let name of alert.matchedToneSetNames; let last = last" class="tone-set-name">
+                                            {{ name }}<span *ngIf="!last">, </span>
+                                        </span>
+                                    </span>
+                                    <span *ngIf="!alert.matchedToneSetNames || alert.matchedToneSetNames.length === 0" class="tone-set-name">
+                                        {{ alert.matchedToneSetName }}
+                                    </span>
+                                </div>
+                                
+                                <div *ngIf="getKeywordsMatched(alert).length > 0" class="alert-keywords">
+                                    <strong>Keywords:</strong>
+                                    <span class="keyword-tags">
+                                        <span *ngFor="let keyword of getKeywordsMatched(alert)" class="keyword-tag">
+                                            {{ keyword }}
+                                        </span>
+                                    </span>
+                                </div>
+                                
+                                <div *ngIf="alert.transcript || alert.transcriptSnippet" class="alert-transcript">
+                                    <strong>Transcript:</strong>
+                                    <p class="transcript-text">{{ alert.transcript || alert.transcriptSnippet }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert-actions">
+                            <button class="btn-play" (click)="playCall(alert.callId)">
+                                Play Call
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </mat-expansion-panel>
+
+        </div>
+    </div>
+    
+    <div class="transcripts-content" *ngIf="activeTab === 'transcripts'">
+        <div *ngIf="transcripts.length === 0 && !loadingTranscripts" class="no-alerts">
+            <p>No transcripts yet</p>
+        </div>
+        <div *ngIf="loadingTranscripts" class="loading">
+            <p>Loading transcripts...</p>
+        </div>
+        <div *ngIf="transcripts.length > 0" class="transcripts-list">
+            <div *ngFor="let transcript of transcripts" class="transcript-item">
+                <div class="transcript-header">
+                    <div class="transcript-channel">
+                        <strong>Channel:</strong>
+                        <span>
+                            <span *ngIf="transcript.systemLabel">{{ transcript.systemLabel }}</span>
+                            <span *ngIf="!transcript.systemLabel">System {{ transcript.systemId }}</span>
+                            <span> / </span>
+                            <span *ngIf="transcript.talkgroupLabel">{{ transcript.talkgroupLabel }}</span>
+                            <span *ngIf="!transcript.talkgroupLabel && transcript.talkgroupName">{{ transcript.talkgroupName }}</span>
+                            <span *ngIf="!transcript.talkgroupLabel && !transcript.talkgroupName">Talkgroup {{ transcript.talkgroupId }}</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="transcript-body">
+                    <p>{{ transcript.transcript }}</p>
+                </div>
+                <div class="transcript-footer">
+                    <span>{{ transcript.timestamp ? (transcript.timestamp | date:'short') : '' }}</span>
+                    <button class="btn-play" (click)="playCall(transcript.callId)">
+                        Play Call
+                    </button>
+                </div>
+            </div>
+
+            <div class="pagination-controls">
+                <button class="btn-nav" (click)="prevTranscriptsPage()" [disabled]="transcriptOffset === 0 || loadingTranscripts">
+                    ‹ Prev
+                </button>
+                <span>Showing {{ transcriptOffset + 1 }} - {{ transcriptOffset + transcripts.length }}</span>
+                <button class="btn-nav" (click)="nextTranscriptsPage()" [disabled]="transcripts.length < limit || loadingTranscripts">
+                    Next ›
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="preferences-content" *ngIf="activeTab === 'preferences'">
+        <rdio-scanner-alert-preferences></rdio-scanner-alert-preferences>
+    </div>
+</div>

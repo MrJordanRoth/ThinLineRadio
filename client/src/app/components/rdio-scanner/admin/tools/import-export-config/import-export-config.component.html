@@ -1,0 +1,23 @@
+<div>
+    <p>
+        <span class="mat-body">Import config</span><br>
+        <span class="mat-caption">Import a JSON file into the configuration panel where you can then review it before submitting it.</span>
+    </p>
+    <button mat-raised-button (click)="input.click()">Import for Review</button>
+    <input #input type="file" style="display: none" (change)="import($event)">
+</div>
+<div>
+    <p>
+        <span class="mat-body">Import and Apply config</span><br>
+        <span class="mat-caption">Import a JSON file and immediately apply it to the server (no review).</span>
+    </p>
+    <button mat-raised-button color="primary" (click)="directInput.click()">Import and Apply</button>
+    <input #directInput type="file" style="display: none" (change)="importAndApply($event)">
+</div>
+<div>
+    <p>
+        <span class="mat-body">Export config</span><br>
+        <span class="mat-caption">Export the configuration to a JSON file.</span>
+    </p>
+    <button mat-raised-button (click)="export()">Export</button>
+</div>

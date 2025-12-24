@@ -1,0 +1,20 @@
+<!-- Blocked Message with Countdown -->
+<div *ngIf="isBlocked" style="text-align: center; padding: 40px 20px;">
+    <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+    <h2 style="color: #d32f2f; margin-bottom: 16px;">Too Many Failed Attempts</h2>
+    <p style="margin-bottom: 24px;">Your IP address has been temporarily blocked due to multiple failed login attempts.</p>
+    <div style="font-size: 48px; font-weight: bold; color: #667eea; margin-bottom: 16px;">
+        {{ getCountdownDisplay() }}
+    </div>
+    <p style="color: #666;">Please wait before trying again.</p>
+</div>
+
+<form [formGroup]="form" (ngSubmit)="login()" *ngIf="!isBlocked">
+    <p class="mat-body-2">Please enter the admin password to gain access to the administrative dashboard</p>
+    <mat-form-field hideRequiredMarker>
+        <mat-label>Password</mat-label>
+        <input matInput formControlName="password" type="password" required>
+        <mat-error>{{ message }}</mat-error>
+    </mat-form-field>
+    <button mat-raised-button color="primary" type="submit" [disabled]="form.disabled || form.invalid">Login</button>
+</form>

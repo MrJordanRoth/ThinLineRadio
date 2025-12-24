@@ -1,0 +1,39 @@
+<div class="row top">
+    <p class="mat-body">All system talkgroups must be associated with a tag, which is then used to search for calls
+        based on their tag.</p>
+    <button type="button" mat-button color="accent" (click)="add()">New Tag</button>
+    <button type="button" mat-button color="primary" (click)="cleanupUnused()">Cleanup Unused</button>
+</div>
+<p *ngIf="!tags?.length" class="mat-small text-center">No defined Tags</p>
+<mat-accordion displayMode="flat" cdkDropList [cdkDropListAutoScrollStep]=64 [cdkDropListData]="tags"
+    (cdkDropListDropped)="drop($event)">
+    <mat-expansion-panel *ngFor="let tag of tags; index as i" cdkDrag>
+        <mat-expansion-panel-header>
+            <mat-panel-title>
+                <mat-icon cdkDragHandle>drag_indicator</mat-icon>
+                {{ tag.value.label || 'NewTag' }}
+                <mat-icon *ngIf="tag.invalid" color="warn">error</mat-icon>
+                <mat-icon *ngIf="isTagUnused(tag.value.id)" color="accent" matTooltip="No talkgroups assigned to this tag">warning</mat-icon>
+            </mat-panel-title>
+        </mat-expansion-panel-header>
+        <ng-container [formGroup]="tag">
+            <div class="row">
+                <p>
+                    <span class="mat-body">Label</span><br>
+                    <span class="mat-caption">Tag label displayed on the main screen and on the search panel.</span>
+                </p>
+                <mat-form-field floatLabel="auto">
+                    <input type="text" matInput formControlName="label" placeholder="Label">
+                    <mat-error *ngIf="form?.get('label')?.hasError('required')">
+                        Label is required
+                    </mat-error>
+                </mat-form-field>
+            </div>
+            <div class="row bottom">
+                <button type="button" mat-button color="warn" (click)="remove(i)">
+                    Delete Tag
+                </button>
+            </div>
+        </ng-container>
+    </mat-expansion-panel>
+</mat-accordion>

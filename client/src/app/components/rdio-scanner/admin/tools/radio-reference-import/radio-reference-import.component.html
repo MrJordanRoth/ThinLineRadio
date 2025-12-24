@@ -1,0 +1,542 @@
+<section>
+    <h3 class="mat-h3">Radio Reference Import</h3>
+    <p class="mat-body">Import talkgroups, units, and sites directly from RadioReference.com</p>
+    <p class="mat-body-1" style="color: #f44336; font-size: 1.05em; margin-top: 8px; font-weight: 500;">
+        It is recommended to import on your server when accessing it via localhost, connecting through a tunnel or url could create issues.
+    </p>
+</section>
+
+<section>
+    <h4 class="mat-h4">Step 1: Test Radio Reference Connection</h4>
+    <p class="mat-body" style="margin-bottom: 12px;">
+        If you see "Connection failed", confirm you used your RadioReference username (not email), reset your RadioReference password on RadioReference.com, and try again.
+    </p>
+    <div class="connection-form">
+        <div class="button-row">
+            <button mat-raised-button color="primary" (click)="testConnection()" [disabled]="!hasRadioReferenceCredentials">
+                <mat-icon>wifi</mat-icon>
+                Test Connection
+            </button>
+        </div>
+
+        <div *ngIf="!hasRadioReferenceCredentials" class="connection-status error">
+            <mat-icon>error</mat-icon>
+            <span>Radio Reference credentials not configured. Please configure them at Config → Options first.</span>
+        </div>
+
+        <div *ngIf="connectionStatus" class="connection-status" [class.connected]="isConnected">
+            <mat-icon>{{ isConnected ? 'check_circle' : 'error' }}</mat-icon>
+            <span>{{ connectionStatus }}</span>
+        </div>
+
+        <div *ngIf="websocketStatus" class="websocket-status" [class.connected]="websocketStatus === 'Connected'">
+            <mat-icon>{{ websocketStatus === 'Connected' ? 'wifi' : 'wifi_off' }}</mat-icon>
+            <span>WebSocket: {{ websocketStatus }}</span>
+        </div>
+    </div>
+</section>
+
+<section *ngIf="isConnected">
+    <h4 class="mat-h4">Step 2: Select Import Type</h4>
+    <div class="import-type-selection">
+        <mat-form-field floatLabel="auto" appearance="outline">
+            <mat-label>Import Type</mat-label>
+            <mat-select [(ngModel)]="importType" (selectionChange)="onImportTypeChange()">
+                <mat-option value="talkgroups">Talkgroups</mat-option>
+                <mat-option value="sites">Sites</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+</section>
+
+<section *ngIf="isConnected && importType">
+    <h4 class="mat-h4">Step 2.5: Select Target System</h4>
+    <div class="destination-selection">
+        <mat-form-field floatLabel="auto" appearance="outline" *ngIf="localSystems.length > 0">
+            <mat-label>Select System</mat-label>
+            <mat-select [(ngModel)]="targetSystemId" (ngModelChange)="onTargetSystemIdChange($event)">
+                <mat-option *ngFor="let system of localSystems; trackBy: trackBySystemId" [value]="system.id">
+                    {{ system.label || ('System ' + system.id) }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <div *ngIf="localSystems.length === 0" class="mat-caption" style="margin: 4px 0 0;">
+            No existing systems found. Create a system from the Systems configuration tool before importing.
+        </div>
+    </div>
+</section>
+
+<section *ngIf="isConnected && importType">
+    <h4 class="mat-h4">Step 3: Choose Location</h4>
+    <div class="dropdowns" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+        <mat-form-field appearance="outline" floatLabel="auto">
+            <mat-label>Country</mat-label>
+            <mat-select [(ngModel)]="selectedCountry" (selectionChange)="onCountryChange()">
+                <mat-option *ngFor="let c of countries" [value]="c">{{ c.name }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" floatLabel="auto">
+            <mat-label>State/Province</mat-label>
+            <mat-select [(ngModel)]="selectedStateId" (selectionChange)="onStateChange()" [disabled]="!selectedCountry">
+                <mat-option *ngFor="let s of states" [value]="s.id">{{ s.name }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" floatLabel="auto">
+            <mat-label>County</mat-label>
+            <mat-select [(ngModel)]="selectedCountyId" (selectionChange)="onCountyChange()" [disabled]="!selectedStateId">
+                <mat-option *ngFor="let c of counties" [value]="c.id">{{ c.name }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" floatLabel="auto">
+            <mat-label>System</mat-label>
+            <mat-select (selectionChange)="onSystemSelectFromDropdown($event.value)" [disabled]="!selectedCountyId">
+                <mat-option *ngFor="let s of systems" [value]="s.id">{{ s.name }}</mat-option>
+            </mat-select>
+        </mat-form-field>
+    </div>
+
+    <!-- Loading indicator for talkgroup categories -->
+    <div *ngIf="importType === 'talkgroups' && selectedSystem && isLoadingCategories" class="loading-indicator" style="margin-top: 12px;">
+        <mat-spinner diameter="20"></mat-spinner>
+        <span style="margin-left: 8px;">Loading talkgroup categories...</span>
+    </div>
+
+    <!-- Category selection when available -->
+    <div *ngIf="importType === 'talkgroups' && selectedSystem && talkgroupCategories.length > 0" class="category-selection" style="margin-top: 12px;">
+        <mat-form-field floatLabel="auto" appearance="outline">
+            <mat-label>Talkgroup Category</mat-label>
+            <mat-select [(ngModel)]="selectedCategory" (selectionChange)="selectCategory($event.value)" placeholder="Select Category">
+                <mat-option [value]="undefined">Select Category</mat-option>
+                <mat-option value="ALL">All Categories</mat-option>
+                <mat-option *ngFor="let cat of talkgroupCategories" [value]="cat">
+                    {{ cat.name }} {{ cat.description ? '(' + cat.description + ')' : '' }}
+                </mat-option>
+            </mat-select>
+        </mat-form-field>
+        
+        <div *ngIf="selectedCategory === undefined" class="mat-caption" style="margin-top: 8px; color: #666;">
+            <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+            Select a talkgroup category or choose "All Categories" to continue.
+        </div>
+        
+        <div *ngIf="selectedCategory === 'ALL'" class="mat-caption" style="margin-top: 8px; color: #666;">
+            <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">info</mat-icon>
+            All talkgroups from all categories will be loaded into the table
+        </div>
+    </div>
+</section>
+
+<section *ngIf="selectedSystem && importType">
+    <h4 class="mat-h4">Step 4: Select Your {{ getImportTypeDisplayName() }}</h4>
+    <div class="system-selection">
+        <mat-card class="selected-system" style="margin-bottom: 16px;">
+            <mat-card-header>
+                <mat-card-title>{{ selectedSystem.name }}</mat-card-title>
+                <mat-card-subtitle>
+                    {{ selectedSystem.city }}, {{ selectedSystem.state }} - {{ selectedSystem.type }}
+                </mat-card-subtitle>
+            </mat-card-header>
+        </mat-card>
+
+    </div>
+
+    <!-- Dynamic Content Based on Import Type -->
+    
+    <!-- Talkgroup Display and Management -->
+    <div *ngIf="importType === 'talkgroups'" class="talkgroup-management" style="margin-top: 24px;">
+        <p class="mat-body">
+            Browse talkgroups for this system 
+            <span *ngIf="selectedCategory && selectedCategory !== 'ALL'">from category: <strong>{{ selectedCategory.name }}</strong></span>
+            <span *ngIf="selectedCategory === 'ALL'">from <strong>all categories</strong></span>
+            <span *ngIf="selectedCategory === undefined">— select a category to begin</span>
+        </p>
+        
+        <div class="county-path" *ngIf="getCountyPath()">
+            <strong>Current Location:</strong> {{ getCountyPath() }}
+        </div>
+
+        <div class="talkgroup-filters">
+            <mat-form-field appearance="outline" floatLabel="auto" style="width: 300px;">
+                <mat-label>Search</mat-label>
+                <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" 
+                       placeholder="Search by ID, alpha tag, description, group, or tag">
+                <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" floatLabel="auto" style="width: 200px;">
+                <mat-label>Group Filter</mat-label>
+                <input matInput [(ngModel)]="groupFilter" (ngModelChange)="onGroupFilterChange()" 
+                       placeholder="Filter by group">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" floatLabel="auto" style="width: 200px;">
+                <mat-label>Tag Filter</mat-label>
+                <input matInput [(ngModel)]="tagFilter" (ngModelChange)="onTagFilterChange()" 
+                       placeholder="Filter by tag">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" floatLabel="auto" style="width: 150px;">
+                <mat-label>Encrypted</mat-label>
+                <mat-select [(ngModel)]="encryptedFilterSelection" (selectionChange)="onEncryptedFilterChange()">
+                    <mat-option value="all">All</mat-option>
+                    <mat-option value="encrypted">Encrypted Only</mat-option>
+                    <mat-option value="clear">Clear Only</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            <button mat-button color="accent" (click)="clearFilters()">
+                <mat-icon>clear</mat-icon>
+                Clear Filters
+            </button>
+
+            <button mat-raised-button color="primary" (click)="exportToCsv()" 
+                    [disabled]="filteredTalkgroups.length === 0">
+                <mat-icon>download</mat-icon>
+                Export CSV
+            </button>
+
+        </div>
+
+        <div class="results-info" *ngIf="filteredTalkgroups.length > 0">
+            <span class="mat-body-2">
+                Showing {{ getCurrentPageInfo() }} talkgroups
+                <span *ngIf="filteredTalkgroups.length !== allTalkgroups.length">
+                    (filtered from {{ allTalkgroups.length }} total)
+                </span>
+            </span>
+        </div>
+
+        <div class="error-section" *ngIf="errorMessage">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
+        <div class="loading-section" *ngIf="isLoading">
+            <!-- Progress Bar -->
+            <div class="progress-container" *ngIf="progressStatus !== 'idle'">
+                <div class="progress-header">
+                    <span class="mat-body-2">{{ progressMessage }}</span>
+                </div>
+                
+                <mat-progress-bar 
+                    *ngIf="progressTotal > 0"
+                    [value]="(progressCurrent / progressTotal) * 100"
+                    [color]="progressStatus === 'complete' ? 'accent' : 'primary'"
+                    class="progress-bar">
+                </mat-progress-bar>
+                
+                <div class="progress-details" *ngIf="progressTotal > 0">
+                    <span class="mat-caption">
+                        {{ progressCurrent }} / {{ progressTotal }} categories
+                        <span *ngIf="progressStatus === 'complete'"> - Complete!</span>
+                    </span>
+                </div>
+
+                <!-- Checkpoint information -->
+                <div class="checkpoint-info" *ngIf="isCheckpointMessage(progressMessage)" style="margin-top: 8px; padding: 8px 12px; background: #e8f5e8; border-radius: 4px; border-left: 4px solid #4caf50;">
+                    <span class="mat-caption" style="color: #2e7d32;">
+                        <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">check_circle</mat-icon>
+                        {{ progressMessage }}
+                    </span>
+                </div>
+
+                <!-- Retry information -->
+                <div class="retry-info" *ngIf="retryCount > 0" style="margin-top: 12px; padding: 8px 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+                    <span class="mat-caption" style="color: #856404;">
+                        <mat-icon style="font-size: 16px; vertical-align: middle; margin-right: 4px;">refresh</mat-icon>
+                        Retry attempt {{ retryCount }}/3 - Reconnecting due to network issue...
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Fallback spinner for non-progress operations -->
+            <div *ngIf="progressStatus === 'idle'">
+                <mat-spinner diameter="40"></mat-spinner>
+                <span class="mat-body-2">Loading...</span>
+            </div>
+        </div>
+
+        <div class="talkgroup-table" *ngIf="!isLoading && filteredTalkgroups.length > 0">
+            <mat-table [dataSource]="getPaginatedTalkgroups()" class="mat-elevation-z1">
+                <ng-container matColumnDef="select">
+                    <mat-header-cell *matHeaderCellDef>
+                        <mat-checkbox
+                            color="primary"
+                            [checked]="areAllVisibleTalkgroupsSelected()"
+                            [indeterminate]="areSomeVisibleTalkgroupsSelected()"
+                            (change)="toggleSelectAllVisible($event.checked)">
+                        </mat-checkbox>
+                    </mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">
+                        <mat-checkbox
+                            color="primary"
+                            [checked]="isTalkgroupSelected(talkgroup)"
+                            (change)="onTalkgroupCheckboxChange(talkgroup, $event.checked)">
+                        </mat-checkbox>
+                    </mat-cell>
+                </ng-container>
+
+                <!-- ID Column -->
+                <ng-container matColumnDef="id">
+                    <mat-header-cell *matHeaderCellDef>ID</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">{{ talkgroup.id }}</mat-cell>
+                </ng-container>
+
+                <!-- Alpha Tag Column -->
+                <ng-container matColumnDef="alphaTag">
+                    <mat-header-cell *matHeaderCellDef>Alpha Tag</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">{{ talkgroup.alphaTag }}</mat-cell>
+                </ng-container>
+
+                <!-- Description Column -->
+                <ng-container matColumnDef="description">
+                    <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">{{ talkgroup.description }}</mat-cell>
+                </ng-container>
+
+                <!-- Group Column -->
+                <ng-container matColumnDef="group">
+                    <mat-header-cell *matHeaderCellDef>Group</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">{{ talkgroup.group }}</mat-cell>
+                </ng-container>
+
+                <!-- Tag Column -->
+                <ng-container matColumnDef="tag">
+                    <mat-header-cell *matHeaderCellDef>Tag</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">{{ talkgroup.tag }}</mat-cell>
+                </ng-container>
+
+                <!-- Encrypted Column -->
+                <ng-container matColumnDef="encrypted">
+                    <mat-header-cell *matHeaderCellDef>Encrypted</mat-header-cell>
+                    <mat-cell *matCellDef="let talkgroup">
+                        <mat-icon [color]="getEncryptedColor(talkgroup)" style="font-size: 18px;">
+                            {{ getEncryptedIcon(talkgroup) }}
+                        </mat-icon>
+                        {{ getEncryptedText(talkgroup) }}
+                    </mat-cell>
+                </ng-container>
+
+                <mat-header-row *matHeaderRowDef="talkgroupColumns"></mat-header-row>
+                <mat-row *matRowDef="let row; columns: talkgroupColumns;"></mat-row>
+            </mat-table>
+
+            <div class="table-footer" style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 12px; flex-wrap: wrap;">
+                <div class="selection-actions" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button mat-stroked-button color="primary" (click)="selectAllVisibleTalkgroups()" [disabled]="getPaginatedTalkgroups().length === 0">
+                        Select Page
+                    </button>
+                    <button mat-stroked-button color="primary" (click)="selectAllTalkgroups()" [disabled]="filteredTalkgroups.length === 0">
+                        Select All
+                    </button>
+                    <button mat-button (click)="clearSelectedTalkgroups()" [disabled]="getSelectedTalkgroupCount() === 0">
+                        Clear Selection
+                    </button>
+                    <button mat-raised-button color="accent" (click)="addSelectedTalkgroupsToImportList()" [disabled]="getSelectedTalkgroupCount() === 0">
+                        Add Selected to List<span *ngIf="getSelectedTalkgroupCount() > 0"> ({{ getSelectedTalkgroupCount() }})</span>
+                    </button>
+                </div>
+
+                <div class="pagination-container" *ngIf="filteredTalkgroups.length > pageSize">
+                    <mat-paginator 
+                        [length]="filteredTalkgroups.length"
+                        [pageSize]="pageSize"
+                        [pageIndex]="currentPage"
+                        [pageSizeOptions]="[25, 50, 100, 200]"
+                        (page)="onPageChange($event)"
+                        showFirstLastButtons>
+                    </mat-paginator>
+                </div>
+            </div>
+        </div>
+
+        <div class="no-data" *ngIf="!isLoading && filteredTalkgroups.length === 0 && allTalkgroups.length === 0">
+            <mat-icon style="font-size: 48px; color: #ccc;">radio</mat-icon>
+            <p class="mat-body-2">No talkgroups loaded. Select a category to begin.</p>
+        </div>
+
+        <div class="no-results" *ngIf="!isLoading && filteredTalkgroups.length === 0 && allTalkgroups.length > 0">
+            <mat-icon style="font-size: 48px; color: #ccc;">filter_list</mat-icon>
+            <p class="mat-body-2">No talkgroups match the current filters.</p>
+            <button mat-button color="accent" (click)="clearFilters()">Clear Filters</button>
+        </div>
+    </div>
+
+    <!-- Sites Display and Management -->
+    <div *ngIf="importType === 'sites'" class="sites-management" style="margin-top: 24px;">
+        <p class="mat-body">Browse all available sites for this system</p>
+        
+        <div class="county-path" *ngIf="getCountyPath()">
+            <strong>Current Location:</strong> {{ getCountyPath() }}
+        </div>
+
+        <div class="sites-filters">
+            <mat-form-field appearance="outline" floatLabel="auto" style="width: 300px;">
+                <mat-label>Search</mat-label>
+                <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" 
+                       placeholder="Search by ID, name, or description">
+                <mat-icon matSuffix>search</mat-icon>
+            </mat-form-field>
+
+            <button mat-button color="accent" (click)="clearFilters()">
+                <mat-icon>clear</mat-icon>
+                Clear Filters
+            </button>
+        </div>
+
+        <div class="results-info" *ngIf="importData.length > 0">
+            <span class="mat-body-2">
+                Found {{ importData.length }} sites for this system
+            </span>
+        </div>
+
+        <div class="error-section" *ngIf="errorMessage">
+            <mat-error>{{ errorMessage }}</mat-error>
+        </div>
+
+        <div class="loading-section" *ngIf="isImporting">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span class="mat-body-2">Loading sites...</span>
+        </div>
+
+        <div class="sites-table" *ngIf="!isImporting && importData.length > 0">
+            <mat-table [dataSource]="importData" class="mat-elevation-z1">
+                <!-- RFSS Column -->
+                <ng-container matColumnDef="siteRfss">
+                    <mat-header-cell *matHeaderCellDef>RFSS</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.rfss || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <!-- Site Column -->
+                <ng-container matColumnDef="siteSite">
+                    <mat-header-cell *matHeaderCellDef>Site</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.id }}</mat-cell>
+                </ng-container>
+
+                <!-- Name Column -->
+                <ng-container matColumnDef="siteName">
+                    <mat-header-cell *matHeaderCellDef>Name</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.name }}</mat-cell>
+                </ng-container>
+
+                <!-- County Column -->
+                <ng-container matColumnDef="siteCounty">
+                    <mat-header-cell *matHeaderCellDef>County</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.countyName || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <!-- Latitude Column -->
+                <ng-container matColumnDef="siteLat">
+                    <mat-header-cell *matHeaderCellDef>Latitude</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.latitude || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <!-- Longitude Column -->
+                <ng-container matColumnDef="siteLon">
+                    <mat-header-cell *matHeaderCellDef>Longitude</mat-header-cell>
+                    <mat-cell *matCellDef="let site">{{ site.longitude || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <mat-header-row *matHeaderRowDef="['siteRfss', 'siteSite', 'siteName', 'siteCounty', 'siteLat', 'siteLon']"></mat-header-row>
+                <mat-row *matRowDef="let row; columns: ['siteRfss', 'siteSite', 'siteName', 'siteCounty', 'siteLat', 'siteLon'];"></mat-row>
+            </mat-table>
+        </div>
+
+        <div class="no-data" *ngIf="!isImporting && importData.length === 0">
+            <mat-icon style="font-size: 48px; color: #ccc;">location_on</mat-icon>
+            <p class="mat-body-2">No sites loaded. Select a system and click "Load Selected".</p>
+        </div>
+    </div>
+
+
+</section>
+
+<section *ngIf="importData.length > 0">
+    <h4 class="mat-h4">Review Data to Import</h4>
+    <div class="import-preview">
+        <div class="scroll">
+            <mat-table #importTable [dataSource]="importData" class="mat-elevation-z1">
+                <ng-container matColumnDef="id">
+                    <mat-header-cell *matHeaderCellDef>ID</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ item.id }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="alphaTag">
+                    <mat-header-cell *matHeaderCellDef>Alpha Tag</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ item.alphaTag }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="description">
+                    <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ item.description || item.label || '' }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="group">
+                    <mat-header-cell *matHeaderCellDef>Group</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ item.group || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="tag">
+                    <mat-header-cell *matHeaderCellDef>Tag</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ item.tag || 'N/A' }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="encrypted">
+                    <mat-header-cell *matHeaderCellDef>Encrypted</mat-header-cell>
+                    <mat-cell *matCellDef="let item">{{ isEncrypted(item) ? 'Yes' : 'No' }}</mat-cell>
+                </ng-container>
+
+                <ng-container matColumnDef="action">
+                    <mat-header-cell *matHeaderCellDef></mat-header-cell>
+                    <mat-cell *matCellDef="let item; index as i">
+                        <button mat-icon-button color="warn" (click)="removeImportItem(i)">
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </mat-cell>
+                </ng-container>
+
+                <mat-header-row *matHeaderRowDef="importColumns"></mat-header-row>
+                <mat-row *matRowDef="let row; columns: importColumns;"></mat-row>
+            </mat-table>
+        </div>
+
+        <div class="import-summary">
+            <p class="mat-body">
+                Ready to import {{ importData.length }} {{ importType }} to your configuration.
+            </p>
+            
+            <div class="button-row">
+                <button mat-raised-button color="primary" (click)="importToConfig()" 
+                        [disabled]="importData.length === 0 || isImporting || targetSystemId === null">
+                    <mat-icon *ngIf="!isImporting">save</mat-icon>
+                    <mat-spinner *ngIf="isImporting" diameter="20"></mat-spinner>
+                    {{ getImportButtonLabel() }}
+                </button>
+                <button mat-button color="warn" (click)="clearReviewList()" [disabled]="importData.length === 0">
+                    <mat-icon>clear_all</mat-icon>
+                    Clear List
+                </button>
+            </div>
+
+            <!-- Success/Error Messages -->
+            <div *ngIf="successMessage" class="message success">
+                <mat-icon>check_circle</mat-icon>
+                <span>{{ successMessage }}</span>
+            </div>
+            
+            <div *ngIf="errorMessage" class="message error">
+                <mat-icon>error</mat-icon>
+                <span>{{ errorMessage }}</span>
+            </div>
+
+            <p *ngIf="importData.length > 1000" class="mat-caption mat-error text-center text-uppercase">
+                Warning: You are trying to import more than 1000 items. The interface may become slow.
+            </p>
+        </div>
+    </div>
+</section>
+
+
