@@ -1,19 +1,6 @@
 /*
  * *****************************************************************************
  * Copyright (C) 2025 Thinline Dynamic Solutions
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>
  * ****************************************************************************
  */
 
@@ -25,9 +12,13 @@ export interface AlertSound {
     file: string;
 }
 
-@Injectable()
+@Injectable({
+    providedIn: 'root',
+})
 export class AlertSoundService {
     private audio: HTMLAudioElement | null = null;
+    private volume = 0.7;
+
     private readonly sounds: AlertSound[] = [
         { name: 'none', displayName: 'None (Silent)', file: '' },
         { name: 'alert', displayName: 'Alert', file: 'assets/sounds/alert.wav' },
@@ -55,41 +46,59 @@ export class AlertSoundService {
         { name: 'tone', displayName: 'Tone', file: 'assets/sounds/tone.wav' },
     ];
 
-    constructor() {}
+    constructor() {
+      // Load Volume
+        const savedVolume = window?.localStorage?.getItem('rdio-scanner-volume');
+        if (savedVolume !== null) {
+            const parsed = Number(savedVolume);
+            if (!Number.isNaN(parsed)) {
+                this.volume = Math.min(Math.max(parsed / 100, 0), 1);
+            }
+        }
+    }
 
     getAvailableSounds(): AlertSound[] {
         return this.sounds;
     }
 
-    getSoundByName(name: string): AlertSound | undefined {
-        return this.sounds.find(s => s.name === name);
-    }
+    setVolume(volume: number): void {
+        this.volume = Math.min(Math.max(volume, 0), 1);
+        localStorage.setItem(
+            'rdio-scanner-volume',
+            Math.round(this.volume * 100).toString()
+        );
 
-    playSound(soundName: string): void {
-        // Stop any currently playing sound
-        this.stopSound();
-
-        // Don't play if 'none' is selected
-        if (!soundName || soundName === 'none') {
-            return;
-        }
-
-        const sound = this.getSoundByName(soundName);
-        if (!sound || !sound.file) {
-            console.warn(`Alert sound '${soundName}' not found or has no file`);
-            return;
-        }
-
-        try {
-            this.audio = new Audio(sound.file);
-            this.audio.volume = 0.7; // 70% volume
-            this.audio.play().catch(err => {
-                console.error('Failed to play alert sound:', err);
-            });
-        } catch (error) {
-            console.error('Error playing alert sound:', error);
+        if (this.audio) {
+            this.audio.volume = this.volume;
         }
     }
+
+
+
+
+
+  playSound(name: string): void {
+    this.stopSound();
+
+    if (!name || name === 'none') return;
+
+    //  Update Volume
+    const savedVolume = localStorage.getItem('rdio-scanner-volume');
+    if (savedVolume !== null) {
+        const parsed = Number(savedVolume);
+        if (!Number.isNaN(parsed)) {
+            this.volume = Math.min(Math.max(parsed / 100, 0), 1);
+        }
+    }
+
+    const sound = this.sounds.find(s => s.name === name);
+    if (!sound?.file) return;
+
+    this.audio = new Audio(sound.file);
+    this.audio.volume = this.volume;
+    this.audio.play().catch(() => {});
+}
+
 
     stopSound(): void {
         if (this.audio) {
@@ -99,9 +108,7 @@ export class AlertSoundService {
         }
     }
 
-    // Preview sound for settings
-    previewSound(soundName: string): void {
-        this.playSound(soundName);
+    previewSound(name: string): void {
+        this.playSound(name);
     }
 }
-
