@@ -18,6 +18,7 @@
  */
 
 import { Component, OnDestroy, ViewEncapsulation } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 import { AdminEvent, RdioScannerAdminService, Group, Tag } from './admin.service';
 
 @Component({
@@ -35,15 +36,46 @@ export class RdioScannerAdminComponent implements OnDestroy {
 
     private eventSubscription;
 
-    constructor(private adminService: RdioScannerAdminService) {
+    constructor(
+        private adminService: RdioScannerAdminService,
+        private titleService: Title,
+    ) {
         // Initialize authenticated state from admin service
         this.authenticated = this.adminService.authenticated;
+        
+        // Set initial title if already authenticated
+        if (this.authenticated) {
+            this.updateTitle();
+        }
         
         this.eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
             if ('authenticated' in event) {
                 this.authenticated = event.authenticated || false;
+                
+                // Update title when authentication state changes
+                if (this.authenticated) {
+                    this.updateTitle();
+                }
+            }
+
+            if ('config' in event && event.config) {
+                const branding = event.config.branding?.trim() || 'TLR';
+                const pageTitle = `Admin-${branding}`;
+                this.titleService.setTitle(pageTitle);
             }
         });
+    }
+
+    private async updateTitle(): Promise<void> {
+        try {
+            const config = await this.adminService.getConfig();
+            const branding = config.branding?.trim() || 'TLR';
+            const pageTitle = `Admin-${branding}`;
+            this.titleService.setTitle(pageTitle);
+        } catch (error) {
+            // If config fetch fails, use default
+            this.titleService.setTitle('Admin-TLR');
+        }
     }
 
     ngOnDestroy(): void {

@@ -27,68 +27,46 @@
 
       <div class="form-section">
         <h4>System Access</h4>
-        <p class="mat-caption">Select systems this group can access. Leave empty to allow access to all systems.</p>
+        <p class="mat-caption">Select systems this group can access and optionally restrict to specific talkgroups. Leave empty to allow access to all systems.</p>
         
-        <div class="access-mode-toggle">
-          <mat-checkbox [(ngModel)]="useTalkgroupSelection" [ngModelOptions]="{standalone: true}" (change)="toggleTalkgroupSelection()">
-            Enable talkgroup-level selection
-          </mat-checkbox>
-          <p class="mat-caption">When enabled, you can select specific talkgroups within each system. When disabled, selecting a system grants access to all talkgroups in that system.</p>
-        </div>
-
-        <!-- Simple system selection (legacy mode) -->
-        <div *ngIf="!useTalkgroupSelection">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Allowed Systems</mat-label>
-            <mat-select [(ngModel)]="selectedSystemIds" [ngModelOptions]="{standalone: true}" multiple>
+        <div *ngFor="let access of selectedSystemAccess; let i = index" class="system-access-entry">
+          <mat-form-field appearance="outline" class="system-select">
+            <mat-label>System</mat-label>
+            <mat-select [(ngModel)]="access.id" [ngModelOptions]="{standalone: true}" (ngModelChange)="onSystemSelected(i, $event)">
               <mat-option *ngFor="let system of systems" [value]="system.systemRef">
                 {{ system.label || ('System ' + system.systemRef) }}
               </mat-option>
             </mat-select>
           </mat-form-field>
-        </div>
-
-        <!-- Talkgroup-level selection (new mode) -->
-        <div *ngIf="useTalkgroupSelection">
-          <div *ngFor="let access of selectedSystemAccess; let i = index" class="system-access-entry">
-            <mat-form-field appearance="outline" class="system-select">
-              <mat-label>System</mat-label>
-              <mat-select [(ngModel)]="access.id" [ngModelOptions]="{standalone: true}">
-                <mat-option *ngFor="let system of systems" [value]="system.systemRef">
-                  {{ system.label || ('System ' + system.systemRef) }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-            
-            <div *ngIf="access.id > 0" class="talkgroup-selection">
-              <div class="talkgroup-controls">
-                <button mat-button type="button" (click)="selectAllTalkgroups(i)">
-                  <mat-icon>select_all</mat-icon>
-                  Select All Talkgroups
-                </button>
-                <span class="talkgroup-status">
-                  {{ access.talkgroups === '*' ? 'All talkgroups' : getTalkgroupCount(access) + ' talkgroups selected' }}
-                </span>
-              </div>
-              <div class="talkgroups-list" *ngIf="getTalkgroupsForSystemAccess(access.id).length > 0">
-                <mat-checkbox 
-                  *ngFor="let tg of getTalkgroupsForSystemAccess(access.id)"
-                  [checked]="isTalkgroupSelected(i, tg.talkgroupRef)"
-                  (change)="toggleTalkgroupInSystem(i, tg.talkgroupRef, $event)">
-                  {{ tg.label || ('Talkgroup ' + tg.talkgroupRef) }}
-                </mat-checkbox>
-              </div>
+          
+          <div *ngIf="access.id > 0" class="talkgroup-selection">
+            <div class="talkgroup-controls">
+              <button mat-button type="button" (click)="selectAllTalkgroups(i)">
+                <mat-icon>select_all</mat-icon>
+                Select All Talkgroups
+              </button>
+              <span class="talkgroup-status">
+                {{ access.talkgroups === '*' ? 'All talkgroups' : getTalkgroupCount(access) + ' talkgroups selected' }}
+              </span>
             </div>
-            
-            <button mat-icon-button type="button" (click)="removeSystemAccess(i)" color="warn">
-              <mat-icon>delete</mat-icon>
-            </button>
+            <div class="talkgroups-list" *ngIf="getTalkgroupsForSystemAccess(access.id).length > 0">
+              <mat-checkbox 
+                *ngFor="let tg of getTalkgroupsForSystemAccess(access.id)"
+                [checked]="isTalkgroupSelected(i, tg.talkgroupRef)"
+                (change)="toggleTalkgroupInSystem(i, tg.talkgroupRef, $event)">
+                {{ tg.label || ('Talkgroup ' + tg.talkgroupRef) }}
+              </mat-checkbox>
+            </div>
           </div>
-          <button mat-button type="button" (click)="addSystemAccess()">
-            <mat-icon>add</mat-icon>
-            Add System
+          
+          <button mat-icon-button type="button" (click)="removeSystemAccess(i)" color="warn">
+            <mat-icon>delete</mat-icon>
           </button>
         </div>
+        <button mat-button type="button" (click)="addSystemAccess()">
+          <mat-icon>add</mat-icon>
+          Add System
+        </button>
       </div>
 
       <mat-form-field appearance="outline" class="full-width">
@@ -104,8 +82,8 @@
           <mat-form-field appearance="outline" class="system-select">
             <mat-label>System</mat-label>
             <mat-select [(ngModel)]="entry.systemId" [ngModelOptions]="{standalone: true}">
-              <mat-option *ngFor="let system of systems" [value]="system.id">
-                {{ system.label || ('System ' + system.id) }}
+              <mat-option *ngFor="let system of systems" [value]="system.systemRef">
+                {{ system.label || ('System ' + system.systemRef) }}
               </mat-option>
             </mat-select>
           </mat-form-field>
@@ -129,17 +107,17 @@
         <div *ngFor="let entry of talkgroupDelayEntries; let i = index" class="delay-entry">
           <mat-form-field appearance="outline" class="system-select">
             <mat-label>System</mat-label>
-            <mat-select [(ngModel)]="entry.systemId" [ngModelOptions]="{standalone: true}" (selectionChange)="entry.talkgroupId = 0">
-              <mat-option *ngFor="let system of systems" [value]="system.id">
-                {{ system.label || ('System ' + system.id) }}
+            <mat-select [(ngModel)]="entry.systemId" [ngModelOptions]="{standalone: true}" (ngModelChange)="onTalkgroupDelaySystemSelected(i)">
+              <mat-option *ngFor="let system of systems" [value]="system.systemRef">
+                {{ system.label || ('System ' + system.systemRef) }}
               </mat-option>
             </mat-select>
           </mat-form-field>
           <mat-form-field appearance="outline" class="talkgroup-select" *ngIf="entry.systemId > 0">
             <mat-label>Talkgroup</mat-label>
             <mat-select [(ngModel)]="entry.talkgroupId" [ngModelOptions]="{standalone: true}">
-              <mat-option *ngFor="let talkgroup of getTalkgroupsForSystem(entry.systemId)" [value]="talkgroup.id">
-                {{ talkgroup.label || ('Talkgroup ' + talkgroup.id) }}
+              <mat-option *ngFor="let talkgroup of getTalkgroupsForSystem(entry.systemId)" [value]="talkgroup.talkgroupRef">
+                {{ talkgroup.label || ('Talkgroup ' + talkgroup.talkgroupRef) }}
               </mat-option>
             </mat-select>
           </mat-form-field>

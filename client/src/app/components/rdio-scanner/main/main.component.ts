@@ -1068,7 +1068,8 @@ export class RdioScannerMainComponent implements OnDestroy, OnInit {
 
             this.branding = this.config?.branding ?? '';
 
-            const pageTitle = this.branding.trim() || 'ThinLine Radio';
+            const brandingText = this.branding.trim() || 'ThinLine Radio';
+            const pageTitle = `TLR-${brandingText}`;
             this.titleService.setTitle(pageTitle);
 
             this.email = this.config?.email ?? '';

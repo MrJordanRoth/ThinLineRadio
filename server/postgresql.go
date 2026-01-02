@@ -30,6 +30,7 @@ var PostgresqlSchema = []string{
     "downstreamId" bigserial NOT NULL PRIMARY KEY,
     "apikey" text NOT NULL,
     "disabled" boolean NOT NULL DEFAULT false,
+    "name" text NOT NULL DEFAULT '',
     "order" integer NOT NULL DEFAULT 0,
     "systems" text NOT NULL DEFAULT '',
     "url" text NOT NULL

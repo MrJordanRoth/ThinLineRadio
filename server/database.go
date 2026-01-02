@@ -265,6 +265,11 @@ func (db *Database) migrate() error {
 		return formatError(err, "")
 	}
 
+	// Add name column to downstreams table
+	if err := migrateDownstreamsName(db); err != nil {
+		return formatError(err, "")
+	}
+
 	// Fix auto-increment sequences to prevent duplicate key errors
 	if err := fixAutoIncrementSequences(db); err != nil {
 		return formatError(err, "")

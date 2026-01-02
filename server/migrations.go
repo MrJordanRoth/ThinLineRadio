@@ -2125,3 +2125,12 @@ func fixAutoIncrementSequences(db *Database) error {
 
 	return nil
 }
+
+// migrateDownstreamsName adds name column to downstreams table
+func migrateDownstreamsName(db *Database) error {
+	query := `ALTER TABLE "downstreams" ADD COLUMN IF NOT EXISTS "name" text NOT NULL DEFAULT ''`
+	if _, err := db.Sql.Exec(query); err != nil {
+		log.Printf("migration note: %v", err)
+	}
+	return nil
+}

@@ -1,5 +1,140 @@
 # Change log
 
+## Version 7.0 Beta 3 - January 2, 2025
+
+### Branding & UI Enhancements
+- **Browser tab titles now show branding**
+  - Main scanner page shows: `TLR-{Branding}` (or `TLR-ThinLine Radio` if no branding configured)
+  - Admin page shows: `Admin-{Branding}` (or `Admin-TLR` if no branding configured)
+  - Dynamically updates based on configured branding in options
+  - Makes it easier to identify multiple instances in browser tabs
+
+- **Favicon now uses email logo**
+  - Favicon automatically uses uploaded email logo if available
+  - Falls back to default ThinLine Radio icon if no logo uploaded
+  - Applies to all icon sizes (16x16, 32x32, 192x192)
+  - Provides consistent branding across browser tab and bookmarks
+
+### User Groups - System Access & Delays UI Improvements
+- **Simplified system/talkgroup selection interface**
+  - Removed confusing "Enable talkgroup-level selection" checkbox toggle
+  - System access now always shows talkgroup options when a system is selected
+  - Cleaner, more intuitive UI with single workflow instead of two modes
+  - Talkgroups populate immediately upon system selection (no more double-clicking required)
+
+- **Fixed talkgroup selection not populating**
+  - Added `(ngModelChange)` event handlers to trigger Angular change detection
+  - System selection now immediately displays available talkgroups
+  - Fixed same issue in talkgroup delay configuration section
+  - Corrected property names (`systemRef` instead of `system.id`, `talkgroupRef` instead of `talkgroup.id`)
+
+- **Improved data format handling**
+  - Frontend now always uses talkgroup-enabled format for better flexibility
+  - Automatically converts legacy format (simple system ID arrays) to new format
+  - Backward compatible with existing group configurations
+
+### Downstreams - Name Field
+- **Added optional name field to downstreams**
+  - Give friendly names to downstream instances (e.g., "Backup Server", "Secondary Instance")
+  - Expansion panel header now shows: "Name - URL" or just "URL" if no name provided
+  - Backend: Added `name` column to `downstreams` table with automatic migration
+  - Frontend: New text input field in downstream configuration form
+  - Makes it easier to identify and manage multiple downstream connections
+
+### System Health Dashboard - Configurable Thresholds
+- **Added configurable tone detection issue threshold**
+  - Tone detection monitoring threshold is now configurable (default: 5 calls)
+  - Previously hardcoded to 5 calls; now adjustable in system health dashboard settings
+  - Alerts trigger when a talkgroup with tone detection enabled has threshold number of calls with no tones detected in 24 hours
+  - Backend: Added `ToneDetectionIssueThreshold` field to `Options` struct
+  - Backend: New API endpoint `/api/admin/tone-detection-issue-threshold` for getting/setting threshold
+  - Frontend: New setting in system health dashboard with inline editing capability
+  - Consistent with existing transcription failure threshold configuration
+
+- **Enhanced system health settings section**
+  - System health dashboard now includes three configurable settings:
+    - Transcription Failure Threshold (alerts when failures exceed count in 24 hours)
+    - Tone Detection Issue Threshold (alerts when talkgroups have calls with no tones)
+    - Alert Retention Days (how long system alerts are kept before deletion)
+  - All settings support inline editing with save/cancel buttons
+  - Settings automatically reload after changes to reflect new values
+
+### Tone Detection & Transcription Optimization
+- **Tone detection now runs BEFORE transcription decision** - Major optimization to prevent wasting API calls
+  - Tone detection completes first (typically 100-500ms), then decides whether to queue transcription
+  - Calculates remaining audio duration after tone removal before sending to transcription API
+  - Skips transcription if remaining audio < 2 seconds (likely tone-only, no voice content)
+  - Saves significant API costs by avoiding transcription of calls that are 85%+ tones
+  - Example: 8.1s of tones in 9.5s audio = 1.4s remaining → transcription skipped
+
+- **Fixed tone duration logic** - Now respects user-configured min/max durations
+  - Removed hardcoded tone duration thresholds (e.g., "Long tones > 3 seconds")
+  - Now properly uses `MinDuration` and `MaxDuration` from tone set configuration for A-tones, B-tones, and Long-tones
+  - Added `ToneType` field to track which type was matched ("A", "B", "Long")
+  - More accurate tone detection based on user's actual pager settings
+
+- **Enhanced tone removal before transcription** - Prevents Whisper hallucinations
+  - Tones are removed from audio file before sending to transcription API
+  - Eliminates transcribed artifacts like "BEEP", "BOOP", "doot doot", etc.
+  - Uses ffmpeg `atrim` and `concat` filters to surgically remove tone segments
+  - Preserves voice content while eliminating tone interference
+
+### Pre-Alert System
+- **Immediate pre-alert notifications** - Users notified as soon as tones are detected
+  - Pre-alerts sent instantly when tones match a tone set (before transcription starts)
+  - Allows users to tune in faster without waiting for transcription to complete
+  - Pre-alert notification format: `TONE SET Tones Detected @ 3:04 PM` (includes timestamp in 12-hour format)
+  - Separate alert type (`pre-alert`) created in database for tracking
+  - Full tone alert sent later after transcription confirms voice content
+
+### Pending Tone Management
+- **Fixed unrelated tone sequences merging** - Prevents incorrect tone attachments
+  - Added `Locked` field to pending tone sequences
+  - Pending tones are locked when voice call starts transcription
+  - New tone-only calls cannot merge with locked pending tones (stored in "next" slot instead)
+  - Prevents race condition where unrelated tones merge during slow transcription
+
+- **Added age check for pending tone merging** - Prevents stale tone combinations
+  - Reduced pending tone timeout from 5 minutes to 2 minutes
+  - New tone-only calls check age of existing pending tones before merging
+  - If existing pending tones are older than timeout (2 min), they're replaced instead of merged
+  - Prevents unrelated incidents from merging together (e.g., tones 3+ minutes apart)
+  - Logs: `existing pending tones for call X are too old (3.5 minutes), replacing with new tones`
+
+### Alert System Improvements
+- **Fixed tone set filtering** - Users now properly receive only selected tone sets
+  - Added extensive debug logging throughout alert preference chain (frontend → API → backend)
+  - Fixed API to always store empty array `[]` instead of `null` when no tone sets selected
+  - Backend treats `null`, `""`, and `[]` as "alert for all tone sets"
+  - Mobile app (Flutter) and web client (Angular) now properly send tone set selections
+  - Debug logs show: `user X has selected specific tone sets: [id1, id2, ...]` or `user X wants ALL tone sets (none selected)`
+
+- **Enhanced alert filtering logic**
+  - Pre-alerts and tone alerts both respect user's tone set selections
+  - Clear logging when user is skipped: `user X SKIPPED for 'Brookfield' (not in selected tone sets)`
+  - Clear logging when user gets alert: `user X gets alert for 'Liberty Duty' (selected this tone set)`
+
+### Performance & Reliability
+- **Optimized transcription worker logic**
+  - Transcription workers now check remaining audio duration after tone removal
+  - Mark calls as transcription completed if mostly tones (prevents pending tones from waiting forever)
+  - Better handling of tone-heavy audio files
+  - Reduced unnecessary transcription queue entries
+
+- **Improved logging**
+  - Added detailed logs for tone detection: `tone detection: analyzed X samples at 16000 Hz, found X potential tone detections`
+  - Added logs for remaining audio calculation: `call X has sufficient remaining audio after tone removal (8.0s of 11.0s total, 3.0s tones)`
+  - Added logs for pending tone lifecycle: stored, merged, locked, replaced, attached
+  - Added debug emoji indicators: 🔔 for tone set matching, 💾 for preference saves
+
+### Bug Fixes
+- Fixed compilation errors in tone detection and alert engine
+- Fixed pending tone timeout not being respected during merge operations
+- Fixed transcription status updates for tone-only calls
+- Fixed race condition in pending tone management during concurrent transcriptions
+
+---
+
 ## Version 7.0 Beta 2 - December 28, 2024
 
 ### Build System Fixes

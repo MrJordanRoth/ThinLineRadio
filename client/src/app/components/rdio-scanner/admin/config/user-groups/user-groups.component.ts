@@ -75,9 +75,7 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
   groupForm: FormGroup;
   showCreateForm = false;
   systems: System[] = [];
-  selectedSystemIds: number[] = []; // Legacy format support
-  selectedSystemAccess: Array<{id: number, talkgroups: number[] | '*'}> = []; // New format with talkgroups
-  useTalkgroupSelection = false; // Toggle between simple system selection and talkgroup selection
+  selectedSystemAccess: Array<{id: number, talkgroups: number[] | '*'}> = []; // Format with talkgroups
   systemDelayEntries: Array<{systemId: number, delay: number}> = [];
   talkgroupDelayEntries: Array<{systemId: number, talkgroupId: number, delay: number}> = [];
   availableUsers: any[] = [];
@@ -315,9 +313,7 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
 
   createGroup(): void {
     this.editingGroup = null;
-    this.selectedSystemIds = [];
     this.selectedSystemAccess = [];
-    this.useTalkgroupSelection = false;
     this.systemDelayEntries = [];
     this.talkgroupDelayEntries = [];
     this.groupForm.reset({
@@ -358,21 +354,14 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
   removeTalkgroupDelay(index: number): void {
     this.talkgroupDelayEntries.splice(index, 1);
   }
-  
-  toggleTalkgroupSelection(): void {
-    this.useTalkgroupSelection = !this.useTalkgroupSelection;
-    if (this.useTalkgroupSelection) {
-      // Convert legacy format to new format
-      this.selectedSystemAccess = this.selectedSystemIds.map(id => ({
-        id: id,
-        talkgroups: '*' as const
-      }));
-      this.selectedSystemIds = [];
-    } else {
-      // Convert new format to legacy format
-      this.selectedSystemIds = this.selectedSystemAccess.map(access => access.id);
-      this.selectedSystemAccess = [];
+
+  onTalkgroupDelaySystemSelected(index: number): void {
+    // Reset talkgroup selection when system changes
+    if (this.talkgroupDelayEntries[index]) {
+      this.talkgroupDelayEntries[index].talkgroupId = 0;
     }
+    // Trigger change detection to update the talkgroups list
+    this.cdr.detectChanges();
   }
 
   addSystemAccess(): void {
@@ -386,6 +375,15 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
 
   removeSystemAccess(index: number): void {
     this.selectedSystemAccess.splice(index, 1);
+  }
+
+  onSystemSelected(index: number, systemRef: number): void {
+    // Reset talkgroup selection to '*' (all talkgroups) when system changes
+    if (this.selectedSystemAccess[index]) {
+      this.selectedSystemAccess[index].talkgroups = '*';
+    }
+    // Trigger change detection to update the talkgroups list
+    this.cdr.detectChanges();
   }
 
   getTalkgroupsForSystemAccess(systemRef: number): any[] {
@@ -473,25 +471,20 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
         // Check if it's new format (objects with id and talkgroups)
         // Add null check before hasOwnProperty
         if (typeof parsed[0] === 'object' && parsed[0] !== null && parsed[0].hasOwnProperty('id')) {
-          this.useTalkgroupSelection = true;
           this.selectedSystemAccess = parsed;
-          this.selectedSystemIds = [];
         } else {
-          // Legacy format (simple array of IDs)
-          this.useTalkgroupSelection = false;
-          this.selectedSystemIds = parsed;
-          this.selectedSystemAccess = [];
+          // Legacy format (simple array of IDs) - convert to new format
+          this.selectedSystemAccess = parsed.map(id => ({
+            id: id,
+            talkgroups: '*' as const
+          }));
         }
       } else {
-        this.selectedSystemIds = [];
         this.selectedSystemAccess = [];
-        this.useTalkgroupSelection = false;
       }
     } catch (e) {
       console.error('Error parsing systemAccess:', e);
-      this.selectedSystemIds = [];
       this.selectedSystemAccess = [];
-      this.useTalkgroupSelection = false;
     }
     
     // Parse system delays JSON
@@ -613,15 +606,10 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
       groupData.pricingOptions = [];
     }
     
-    // Convert system access to JSON - use new format if talkgroup selection is enabled
-    if (this.useTalkgroupSelection && this.selectedSystemAccess.length > 0) {
-      groupData.systemAccess = JSON.stringify(this.selectedSystemAccess);
-    } else {
-      // Legacy format: simple array of system IDs
-      groupData.systemAccess = this.selectedSystemIds.length > 0 
-        ? JSON.stringify(this.selectedSystemIds) 
-        : '';
-    }
+    // Convert system access to JSON - always use talkgroup format
+    groupData.systemAccess = this.selectedSystemAccess.length > 0 
+      ? JSON.stringify(this.selectedSystemAccess) 
+      : '';
     
     // Convert system delays to JSON map
     const systemDelaysMap: {[key: number]: number} = {};
@@ -697,17 +685,9 @@ export class RdioScannerAdminUserGroupsComponent implements OnInit, OnChanges {
   cancelEdit(): void {
     this.showCreateForm = false;
     this.editingGroup = null;
-    this.selectedSystemIds = [];
     this.selectedSystemAccess = [];
-    this.useTalkgroupSelection = false;
-    this.selectedSystemAccess = [];
-    this.useTalkgroupSelection = false;
-    this.selectedSystemIds = [];
-    this.selectedSystemAccess = [];
-    this.useTalkgroupSelection = false;
     this.groupForm.reset();
     this.groupAdminMode = 'none';
-    this.selectedSystemIds = [];
     this.systemDelayEntries = [];
     this.talkgroupDelayEntries = [];
   }

@@ -120,6 +120,7 @@ export interface UserGroup {
 
 export interface Config {
     apikeys?: Apikey[];
+    branding?: string;
     dirwatch?: Dirwatch[];
     downstreams?: Downstream[];
     groups?: Group[];
@@ -152,6 +153,7 @@ export interface Downstream {
     id?: string;
     apikey?: string;
     disabled?: boolean;
+    name?: string;
     order?: number;
     systems?: {
         id?: number;
@@ -791,6 +793,7 @@ export class RdioScannerAdminService implements OnDestroy {
             id: this.ngFormBuilder.control(downstream?.id),
             apikey: this.ngFormBuilder.control(downstream?.apikey, [Validators.required, this.validateApikey()]),
             disabled: this.ngFormBuilder.control(downstream?.disabled),
+            name: this.ngFormBuilder.control(downstream?.name),
             order: this.ngFormBuilder.control(downstream?.order),
             systems: this.ngFormBuilder.control(downstream?.systems, Validators.required),
             url: this.ngFormBuilder.control(downstream?.url, [Validators.required, this.validateUrl(), this.validateDownstreamUrl()]),

@@ -35,6 +35,7 @@ type Downstream struct {
 	Id         uint64
 	Apikey     string
 	Disabled   bool
+	Name       string
 	Order      uint
 	Systems    any
 	Url        string
@@ -63,6 +64,11 @@ func (downstream *Downstream) FromMap(m map[string]any) *Downstream {
 	switch v := m["disabled"].(type) {
 	case bool:
 		downstream.Disabled = v
+	}
+
+	switch v := m["name"].(type) {
+	case string:
+		downstream.Name = v
 	}
 
 	switch v := m["order"].(type) {
@@ -128,6 +134,7 @@ func (downstream *Downstream) MarshalJSON() ([]byte, error) {
 		"id":       downstream.Id,
 		"apikey":   downstream.Apikey,
 		"disabled": downstream.Disabled,
+		"name":     downstream.Name,
 		"systems":  downstream.Systems,
 		"url":      downstream.Url,
 	}
@@ -473,7 +480,7 @@ func (downstreams *Downstreams) Read(db *Database) error {
 
 	formatError := downstreams.errorFormatter("read")
 
-	query = `SELECT "downstreamId", "apikey", "disabled", "order", "systems", "url" FROM "downstreams"`
+	query = `SELECT "downstreamId", "apikey", "disabled", "name", "order", "systems", "url" FROM "downstreams"`
 	if rows, err = db.Sql.Query(query); err != nil {
 		return formatError(err, query)
 	}
@@ -481,11 +488,16 @@ func (downstreams *Downstreams) Read(db *Database) error {
 	for rows.Next() {
 		var (
 			downstream = NewDownstream(downstreams.controller)
+			name       sql.NullString
 			systems    string
 		)
 
-		if err = rows.Scan(&downstream.Id, &downstream.Apikey, &downstream.Disabled, &downstream.Order, &systems, &downstream.Url); err != nil {
+		if err = rows.Scan(&downstream.Id, &downstream.Apikey, &downstream.Disabled, &name, &downstream.Order, &systems, &downstream.Url); err != nil {
 			break
+		}
+
+		if name.Valid {
+			downstream.Name = name.String
 		}
 
 		if len(systems) > 0 {
@@ -605,17 +617,17 @@ func (downstreams *Downstreams) Write(db *Database) error {
 		if count == 0 {
 			if downstream.Id > 0 {
 				// Preserve the explicit ID when inserting
-				query = fmt.Sprintf(`INSERT INTO "downstreams" ("downstreamId", "apikey", "disabled", "order", "systems", "url") VALUES (%d, '%s', %t, %d, '%s', '%s')`, downstream.Id, escapeQuotes(downstream.Apikey), downstream.Disabled, downstream.Order, systems, escapeQuotes(downstream.Url))
+				query = fmt.Sprintf(`INSERT INTO "downstreams" ("downstreamId", "apikey", "disabled", "name", "order", "systems", "url") VALUES (%d, '%s', %t, '%s', %d, '%s', '%s')`, downstream.Id, escapeQuotes(downstream.Apikey), downstream.Disabled, escapeQuotes(downstream.Name), downstream.Order, systems, escapeQuotes(downstream.Url))
 			} else {
 				// Let database assign auto-increment ID
-				query = fmt.Sprintf(`INSERT INTO "downstreams" ("apikey", "disabled", "order", "systems", "url") VALUES ('%s', %t, %d, '%s', '%s')`, escapeQuotes(downstream.Apikey), downstream.Disabled, downstream.Order, systems, escapeQuotes(downstream.Url))
+				query = fmt.Sprintf(`INSERT INTO "downstreams" ("apikey", "disabled", "name", "order", "systems", "url") VALUES ('%s', %t, '%s', %d, '%s', '%s')`, escapeQuotes(downstream.Apikey), downstream.Disabled, escapeQuotes(downstream.Name), downstream.Order, systems, escapeQuotes(downstream.Url))
 			}
 			if _, err = tx.Exec(query); err != nil {
 				break
 			}
 
 		} else {
-			query = fmt.Sprintf(`UPDATE "downstreams" SET "apikey" = '%s', "disabled" = %t, "order" = %d, "systems" = '%s', "url" = '%s' WHERE "downstreamId" = %d`, escapeQuotes(downstream.Apikey), downstream.Disabled, downstream.Order, systems, escapeQuotes(downstream.Url), downstream.Id)
+			query = fmt.Sprintf(`UPDATE "downstreams" SET "apikey" = '%s', "disabled" = %t, "name" = '%s', "order" = %d, "systems" = '%s', "url" = '%s' WHERE "downstreamId" = %d`, escapeQuotes(downstream.Apikey), downstream.Disabled, escapeQuotes(downstream.Name), downstream.Order, systems, escapeQuotes(downstream.Url), downstream.Id)
 			if _, err = tx.Exec(query); err != nil {
 				break
 			}

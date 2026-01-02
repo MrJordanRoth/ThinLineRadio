@@ -1692,6 +1692,7 @@ func (admin *Admin) GetConfig() map[string]any {
 
 	return map[string]any{
 		"apikeys":              admin.Controller.Apikeys.List,
+		"branding":             admin.Controller.Options.Branding,
 		"dirwatch":             admin.Controller.Dirwatches.List,
 		"downstreams":          admin.Controller.Downstreams.List,
 		"groups":               admin.Controller.Groups.List,

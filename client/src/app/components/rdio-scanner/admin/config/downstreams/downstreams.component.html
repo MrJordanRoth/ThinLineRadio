@@ -8,11 +8,21 @@
         <mat-expansion-panel-header>
             <mat-panel-title>
                 <mat-icon cdkDragHandle>drag_indicator</mat-icon>
-                {{ downstream.value.url || 'NewDownstream' }}
+                <span *ngIf="downstream.value.name">{{ downstream.value.name }} - </span>
+                <span>{{ downstream.value.url || 'New Downstream' }}</span>
                 <mat-icon *ngIf="downstream.invalid" color="warn">error</mat-icon>
             </mat-panel-title>
         </mat-expansion-panel-header>
         <ng-container [formGroup]="downstream">
+            <div class="row">
+                <p>
+                    <span class="mat-body">Name</span><br>
+                    <span class="mat-caption">Optional friendly name for this downstream.</span>
+                </p>
+                <mat-form-field floatLabel="auto">
+                    <input type="text" matInput formControlName="name" placeholder="Name (optional)">
+                </mat-form-field>
+            </div>
             <div class="row">
                 <p>
                     <span class="mat-body">Disabled</span><br>

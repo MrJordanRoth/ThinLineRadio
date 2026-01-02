@@ -17,14 +17,62 @@
  * ****************************************************************************
  */
 
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Title } from '@angular/platform-browser';
+import { Subscription } from 'rxjs';
 import packageInfo from '../../../../../package.json';
+import { RdioScannerAdminService, AdminEvent } from '../../../components/rdio-scanner/admin/admin.service';
 
 @Component({
     selector: 'rdio-scanner-admin-page',
     styleUrls: ['./admin.component.scss'],
     templateUrl: './admin.component.html',
 })
-export class RdioScannerAdminPageComponent {
+export class RdioScannerAdminPageComponent implements OnInit, OnDestroy {
     version = packageInfo.version;
+    private eventSubscription: Subscription | undefined;
+
+    constructor(
+        private adminService: RdioScannerAdminService,
+        private titleService: Title,
+    ) {}
+
+    ngOnInit(): void {
+        // Set initial title
+        this.titleService.setTitle('Admin-TLR');
+        
+        // Set initial title if already authenticated
+        if (this.adminService.authenticated) {
+            this.updateTitle();
+        }
+
+        // Listen for config events
+        this.eventSubscription = this.adminService.event.subscribe(async (event: AdminEvent) => {
+            if ('authenticated' in event && event.authenticated) {
+                this.updateTitle();
+            }
+
+            if ('config' in event && event.config) {
+                const branding = event.config.branding?.trim() || 'TLR';
+                const pageTitle = `Admin-${branding}`;
+                this.titleService.setTitle(pageTitle);
+            }
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.eventSubscription?.unsubscribe();
+    }
+
+    private async updateTitle(): Promise<void> {
+        try {
+            const config = await this.adminService.getConfig();
+            const branding = config.branding?.trim() || 'TLR';
+            const pageTitle = `Admin-${branding}`;
+            this.titleService.setTitle(pageTitle);
+        } catch (error) {
+            // If config fetch fails, use default
+            this.titleService.setTitle('Admin-TLR');
+        }
+    }
 }
