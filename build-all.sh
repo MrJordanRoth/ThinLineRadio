@@ -9,6 +9,10 @@
 
 set -e  # Exit on any error
 
+# Create releases directory if it doesn't exist
+RELEASES_DIR="releases"
+mkdir -p "$RELEASES_DIR"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -297,16 +301,16 @@ EOF
     
     if [ "$PLATFORM" = "windows" ]; then
         cd "$DIST_DIR"
-        zip -r "../$ARCHIVE_NAME" . > /dev/null
-        cd ..
+        zip -r "../../$RELEASES_DIR/$ARCHIVE_NAME" . > /dev/null
+        cd ../..
     else
-        tar -czf "$ARCHIVE_NAME" -C "$DIST_DIR" .
+        tar -czf "$RELEASES_DIR/$ARCHIVE_NAME" -C "$DIST_DIR" .
     fi
     
     # Clean up temporary binary
     rm -f "$BINARY_NAME"
     
-    echo -e "${GREEN}  ✓ Package created: $ARCHIVE_NAME${NC}"
+    echo -e "${GREEN}  ✓ Package created: $RELEASES_DIR/$ARCHIVE_NAME${NC}"
     echo ""
     
     return 0
@@ -414,8 +418,8 @@ build_darwin() {
         cp dist-darwin-amd64/thinline-radio.ini.template "$DIST_DIR_UNIVERSAL/"
         
         ARCHIVE_NAME_UNIVERSAL="thinline-radio-darwin-universal-v${VERSION}.tar.gz"
-        tar -czf "$ARCHIVE_NAME_UNIVERSAL" -C "$DIST_DIR_UNIVERSAL" .
-        echo -e "${GREEN}  ✓ Universal binary created: $ARCHIVE_NAME_UNIVERSAL${NC}"
+        tar -czf "$RELEASES_DIR/$ARCHIVE_NAME_UNIVERSAL" -C "$DIST_DIR_UNIVERSAL" .
+        echo -e "${GREEN}  ✓ Universal binary created: $RELEASES_DIR/$ARCHIVE_NAME_UNIVERSAL${NC}"
         echo ""
     fi
 }
@@ -481,9 +485,9 @@ echo -e "${GREEN}═════════════════════
 echo -e "${GREEN}Build Complete!${NC}"
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo ""
-echo "Built packages:"
-ls -1 thinline-radio-*-v${VERSION}.* 2>/dev/null | while read file; do
-    echo "  ✓ $file"
+echo "Built packages in $RELEASES_DIR/:"
+ls -1 "$RELEASES_DIR"/thinline-radio-*-v${VERSION}.* 2>/dev/null | while read file; do
+    echo "  ✓ $(basename $file)"
 done
 echo ""
 echo "Distribution directories:"
